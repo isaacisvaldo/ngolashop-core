@@ -8,6 +8,8 @@ import {
   Delete,
   Query,
   UseGuards,
+  ForbiddenException,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -27,7 +29,7 @@ export class UserController {
     @Body() createUserDto: CreateUserDto,
   ) {
     if (!rootAdmin) {
-      throw new Error('Only root admin can create users');
+      throw new ForbiddenException('Only root admin can create users');
     }
     return this.userService.create(storeId, createUserDto);
   }
@@ -46,32 +48,35 @@ export class UserController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string, @CurrentUser('storeId') storeId: number) {
-    return this.userService.findOne(+id, storeId);
+  findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser('storeId') storeId: number,
+  ) {
+    return this.userService.findOne(id, storeId);
   }
 
   @Patch(':id')
   update(
-    @Param('id') id: string,
+    @Param('id', ParseIntPipe) id: number,
     @CurrentUser('storeId') storeId: number,
     @CurrentUser('rootAdmin') rootAdmin: boolean,
     @Body() updateUserDto: UpdateUserDto,
   ) {
     if (!rootAdmin) {
-      throw new Error('Only root admin can update users');
+      throw new ForbiddenException('Only root admin can update users');
     }
-    return this.userService.update(+id, storeId, updateUserDto);
+    return this.userService.update(id, storeId, updateUserDto);
   }
 
   @Delete(':id')
   remove(
-    @Param('id') id: string,
+    @Param('id', ParseIntPipe) id: number,
     @CurrentUser('storeId') storeId: number,
     @CurrentUser('rootAdmin') rootAdmin: boolean,
   ) {
     if (!rootAdmin) {
-      throw new Error('Only root admin can delete users');
+      throw new ForbiddenException('Only root admin can delete users');
     }
-    return this.userService.remove(+id, storeId);
+    return this.userService.remove(id, storeId);
   }
 }

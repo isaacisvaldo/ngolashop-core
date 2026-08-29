@@ -3,6 +3,7 @@ import {
   CreateDateColumn,
   DeleteDateColumn,
   Entity,
+  JoinColumn,
   ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
@@ -18,10 +19,10 @@ export class Order {
   @PrimaryGeneratedColumn()
   id!: number;
 
-  @Column({ name: 'store_id', type: 'integer', nullable: false })
   storeId!: number;
 
   @ManyToOne(() => Store, (store) => store.orders)
+  @JoinColumn({ name: 'store_id' })
   store!: Store;
 
   @Column({

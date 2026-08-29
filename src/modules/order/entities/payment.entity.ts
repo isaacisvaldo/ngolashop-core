@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
@@ -13,10 +14,10 @@ export class Payment {
   @PrimaryGeneratedColumn()
   id!: number;
 
-  @Column({ name: 'order_id', type: 'integer', nullable: false })
   orderId!: number;
 
   @ManyToOne(() => Order, (order) => order.payments)
+  @JoinColumn({ name: 'order_id' })
   order!: Order;
 
   @Column({ name: 'method', type: 'varchar', length: 50, nullable: false })

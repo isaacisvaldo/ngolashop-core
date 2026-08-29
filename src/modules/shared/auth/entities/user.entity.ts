@@ -3,11 +3,9 @@ import {
   CreateDateColumn,
   DeleteDateColumn,
   Entity,
-  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { Store } from '../../store/entities/store.entity';
 
 @Entity({ name: 'tb_users' })
 export class User {
@@ -67,7 +65,4 @@ export class User {
 
   @DeleteDateColumn({ name: 'deleted_at', type: 'timestamp', nullable: true })
   deletedAt!: Date;
-
-  @OneToMany(() => Store, (store) => store.user)
-  stores!: Store[];
 }

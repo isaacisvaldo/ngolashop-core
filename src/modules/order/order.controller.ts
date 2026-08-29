@@ -20,16 +20,13 @@ export class OrderController {
   constructor(private readonly orderService: OrderService) {}
 
   @Post()
-  async create(
-    @Body() dto: CreateOrderDto,
-    @CurrentUser('storeId') storeId: number,
-  ) {
-    return this.orderService.create(dto, storeId);
+  create(@Body() dto: CreateOrderDto) {
+    return this.orderService.create(dto);
   }
 
   @UseGuards(JwtAuthGuard)
   @Get()
-  async findAll(
+  findAll(
     @CurrentUser('storeId') storeId: number,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
@@ -45,13 +42,13 @@ export class OrderController {
 
   @UseGuards(JwtAuthGuard)
   @Get('stats')
-  async getStats(@CurrentUser('storeId') storeId: number) {
+  getStats(@CurrentUser('storeId') storeId: number) {
     return this.orderService.getStats(storeId);
   }
 
   @UseGuards(JwtAuthGuard)
   @Get(':id')
-  async findOne(
+  findOne(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser('storeId') storeId: number,
   ) {
@@ -60,7 +57,7 @@ export class OrderController {
 
   @UseGuards(JwtAuthGuard)
   @Patch(':id/status')
-  async updateStatus(
+  updateStatus(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateOrderStatusDto,
     @CurrentUser('storeId') storeId: number,

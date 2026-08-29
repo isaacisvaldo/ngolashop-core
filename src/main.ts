@@ -17,8 +17,8 @@ async function bootstrap() {
   app.setGlobalPrefix('api');
 
   const config = new DocumentBuilder()
-    .setTitle('SGA')
-    .setDescription('SGA')
+    .setTitle('Ngola Bazaar API')
+    .setDescription('Ngola Bazaar - Store Management API')
     .setVersion('1.0.0')
     .addBearerAuth(
       {
@@ -46,10 +46,10 @@ async function bootstrap() {
   );
 
   const port = process.env.PORT;
-  await app.listen(port as any);
+  await app.listen(Number(port));
 
   console.log(`🚀 API rodando na porta ${port}`);
   console.log(`📖 Docs Swagger: http://localhost:${port}/api/docs`);
 }
 
-bootstrap();
+void bootstrap();

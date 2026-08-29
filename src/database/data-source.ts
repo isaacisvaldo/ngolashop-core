@@ -1,5 +1,6 @@
 import { DataSource, DataSourceOptions } from 'typeorm';
 import { config } from 'dotenv';
+import * as path from 'path';
 
 config({
   path: (() => {
@@ -14,16 +15,16 @@ config({
   })(),
 });
 
+const isLocal = process.env.NODE_ENV !== 'production';
+
 export const dataSourceOptions: DataSourceOptions = {
   type: 'postgres',
   url: process.env.DATABASE_URL,
-  entities: [__dirname + '/**/*.entity{.ts,.js}'],
+  entities: [path.resolve(__dirname, '../modules/**/*.entity{.ts,.js}')],
   migrations: [__dirname + '/migrations/*{.ts,.js}'],
   synchronize: false,
   logging: ['query', 'error'],
-  ssl: {
-    rejectUnauthorized: false,
-  },
+  ...(isLocal ? {} : { ssl: { rejectUnauthorized: false } }),
 };
 
 export const AppDataSource = new DataSource(dataSourceOptions);

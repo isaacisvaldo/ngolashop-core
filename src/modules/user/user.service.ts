@@ -9,7 +9,7 @@ import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { User } from '../shared/auth/entities/user.entity';
 import { Store } from '../store/entities/store.entity';
-import { Plan } from '../shared/plan/entities/plan.entity';
+import { StoreSubscription } from '../subscription/entities/subscription.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 
@@ -20,6 +20,8 @@ export class UserService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(Store)
     private readonly storeRepository: Repository<Store>,
+    @InjectRepository(StoreSubscription)
+    private readonly subscriptionRepository: Repository<StoreSubscription>,
   ) {}
 
   async create(storeId: number, createUserDto: CreateUserDto): Promise<User> {
@@ -32,17 +34,23 @@ export class UserService {
 
     const store = await this.storeRepository.findOne({
       where: { id: storeId },
-      relations: ['plan'],
     });
     if (!store) {
       throw new NotFoundException('Store not found');
     }
 
-    if (store.plan && (store.plan as Plan).limitUsers !== null) {
+    // Check user limit from active subscription
+    const subscription = await this.subscriptionRepository.findOne({
+      where: { storeId, status: 'active' },
+      relations: { plan: true },
+      order: { createdAt: 'DESC' },
+    });
+
+    if (subscription?.plan && subscription.plan.limitUsers !== null) {
       const currentUserCount = await this.userRepository.count({
         where: { storeId },
       });
-      if (currentUserCount >= (store.plan as Plan).limitUsers!) {
+      if (currentUserCount >= subscription.plan.limitUsers) {
         throw new ForbiddenException(
           'User limit reached for your current plan',
         );
@@ -58,19 +66,21 @@ export class UserService {
     return this.userRepository.save(user);
   }
 
-  async findAll(
-    storeId: number,
-    page = 1,
-    limit = 10,
-  ): Promise<{
-    data: User[];
-    meta: { total: number; page: number; limit: number; totalPages: number };
-  }> {
+  async findAll(storeId: number, page = 1, limit = 10) {
     const [data, total] = await this.userRepository.findAndCount({
       where: { storeId },
       skip: (page - 1) * limit,
       take: limit,
       order: { createdAt: 'DESC' },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        isActive: true,
+        rootAdmin: true,
+        createdAt: true,
+      },
     });
 
     return {
@@ -80,7 +90,18 @@ export class UserService {
   }
 
   async findOne(id: number, storeId: number): Promise<User> {
-    const user = await this.userRepository.findOne({ where: { id, storeId } });
+    const user = await this.userRepository.findOne({
+      where: { id, storeId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        isActive: true,
+        rootAdmin: true,
+        createdAt: true,
+      },
+    });
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
@@ -118,6 +139,9 @@ export class UserService {
     const user = await this.userRepository.findOne({ where: { id, storeId } });
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found`);
+    }
+    if (user.rootAdmin) {
+      throw new ForbiddenException('Cannot delete root admin user');
     }
     await this.userRepository.softRemove(user);
   }

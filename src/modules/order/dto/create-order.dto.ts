@@ -24,6 +24,11 @@ export class OrderItemDto {
 }
 
 export class CreateOrderDto {
+  @ApiProperty({ example: 1 })
+  @IsNumber()
+  @IsNotEmpty()
+  storeId!: number;
+
   @ApiProperty({ example: 'João Silva' })
   @IsString()
   @IsNotEmpty()

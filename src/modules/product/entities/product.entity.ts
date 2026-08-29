@@ -3,6 +3,7 @@ import {
   CreateDateColumn,
   DeleteDateColumn,
   Entity,
+  JoinColumn,
   ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
@@ -17,16 +18,16 @@ export class Product {
   @PrimaryGeneratedColumn()
   id!: number;
 
-  @Column({ name: 'store_id', type: 'integer', nullable: false })
   storeId!: number;
 
   @ManyToOne(() => Store, (store) => store.products)
+  @JoinColumn({ name: 'store_id' })
   store!: Store;
 
-  @Column({ name: 'category_id', type: 'integer', nullable: true })
   categoryId!: number | null;
 
   @ManyToOne(() => Category, { nullable: true })
+  @JoinColumn({ name: 'category_id' })
   category!: Category | null;
 
   @Column({ name: 'name', type: 'varchar', length: 200, nullable: false })

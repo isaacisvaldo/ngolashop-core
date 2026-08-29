@@ -25,7 +25,8 @@ export class OrderService {
     private readonly productRepository: Repository<Product>,
   ) {}
 
-  async create(dto: CreateOrderDto, storeId: number) {
+  async create(dto: CreateOrderDto) {
+    const storeId = dto.storeId;
     const productIds = dto.items.map((item) => item.productId);
     const products = await this.productRepository.find({
       where: productIds.map((id) => ({ id, storeId })),
@@ -180,14 +181,14 @@ export class OrderService {
       .addSelect('COUNT(*)', 'count')
       .where('order.storeId = :storeId', { storeId })
       .groupBy('order.status')
-      .getRawMany();
+      .getRawMany<{ status: string; count: string }>();
 
     const totalRevenue = await this.orderRepository
       .createQueryBuilder('order')
       .select('COALESCE(SUM(order.total), 0)', 'total')
       .where('order.storeId = :storeId', { storeId })
       .andWhere('order.status != :cancelled', { cancelled: 'cancelled' })
-      .getRawOne();
+      .getRawOne<{ total: string }>();
 
     const recentOrders = await this.orderRepository.find({
       where: { storeId },

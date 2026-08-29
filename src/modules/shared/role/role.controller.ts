@@ -8,6 +8,8 @@ import {
   Delete,
   Query,
   UseGuards,
+  ForbiddenException,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { RoleService } from './role.service';
 import { CreateRoleDto } from './dto/create-role.dto';
@@ -26,7 +28,7 @@ export class RoleController {
     @Body() createRoleDto: CreateRoleDto,
   ) {
     if (!rootAdmin) {
-      throw new Error('Only root admin can create roles');
+      throw new ForbiddenException('Only root admin can create roles');
     }
     return this.roleService.create(createRoleDto);
   }
@@ -38,42 +40,42 @@ export class RoleController {
     @Query('limit') limit?: string,
   ) {
     if (!rootAdmin) {
-      throw new Error('Only root admin can list roles');
+      throw new ForbiddenException('Only root admin can list roles');
     }
     return this.roleService.findAll(page ? +page : 1, limit ? +limit : 10);
   }
 
   @Get(':id')
   findOne(
-    @Param('id') id: string,
+    @Param('id', ParseIntPipe) id: number,
     @CurrentUser('rootAdmin') rootAdmin: boolean,
   ) {
     if (!rootAdmin) {
-      throw new Error('Only root admin can view roles');
+      throw new ForbiddenException('Only root admin can view roles');
     }
-    return this.roleService.findOne(+id);
+    return this.roleService.findOne(id);
   }
 
   @Patch(':id')
   update(
-    @Param('id') id: string,
+    @Param('id', ParseIntPipe) id: number,
     @CurrentUser('rootAdmin') rootAdmin: boolean,
     @Body() updateRoleDto: UpdateRoleDto,
   ) {
     if (!rootAdmin) {
-      throw new Error('Only root admin can update roles');
+      throw new ForbiddenException('Only root admin can update roles');
     }
-    return this.roleService.update(+id, updateRoleDto);
+    return this.roleService.update(id, updateRoleDto);
   }
 
   @Delete(':id')
   remove(
-    @Param('id') id: string,
+    @Param('id', ParseIntPipe) id: number,
     @CurrentUser('rootAdmin') rootAdmin: boolean,
   ) {
     if (!rootAdmin) {
-      throw new Error('Only root admin can delete roles');
+      throw new ForbiddenException('Only root admin can delete roles');
     }
-    return this.roleService.remove(+id);
+    return this.roleService.remove(id);
   }
 }

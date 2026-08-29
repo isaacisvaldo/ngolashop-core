@@ -3,13 +3,11 @@ import {
   CreateDateColumn,
   DeleteDateColumn,
   Entity,
-  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { User } from './user.entity';
 
-@Entity({ name: 'tb_stores' })
+@Entity({ name: 'tb_admin_users' })
 export class AdminUser {
   @PrimaryGeneratedColumn()
   id!: number;

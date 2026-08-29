@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
@@ -14,16 +15,16 @@ export class OrderItem {
   @PrimaryGeneratedColumn()
   id!: number;
 
-  @Column({ name: 'order_id', type: 'integer', nullable: false })
   orderId!: number;
 
   @ManyToOne(() => Order, (order) => order.items)
+  @JoinColumn({ name: 'order_id' })
   order!: Order;
 
-  @Column({ name: 'product_id', type: 'integer', nullable: false })
   productId!: number;
 
   @ManyToOne(() => Product)
+  @JoinColumn({ name: 'product_id' })
   product!: Product;
 
   @Column({

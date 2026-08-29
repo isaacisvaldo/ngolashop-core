@@ -3,6 +3,7 @@ import {
   CreateDateColumn,
   DeleteDateColumn,
   Entity,
+  JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
@@ -14,10 +15,8 @@ export class PlanFeature {
   @PrimaryGeneratedColumn()
   id!: number;
 
-  @Column({ name: 'plan_id', type: 'integer', nullable: false })
-  planId!: number;
-
   @ManyToOne(() => Plan, (plan) => plan.features)
+  @JoinColumn({ name: 'plan_id' })
   plan!: Plan;
 
   @Column({ name: 'text', type: 'varchar', length: 255, nullable: false })

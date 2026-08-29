@@ -3,21 +3,23 @@ import {
   CreateDateColumn,
   DeleteDateColumn,
   Entity,
+  JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { Store } from '../../store/entities/store.entity';
+import { Province } from '../../shared/province/entities/province.entity';
 
 @Entity({ name: 'tb_addresses' })
 export class Address {
   @PrimaryGeneratedColumn()
   id!: number;
 
-  @Column({ name: 'store_id', type: 'integer', nullable: true })
   storeId!: number | null;
 
   @ManyToOne(() => Store, (store) => store.addresses, { nullable: true })
+  @JoinColumn({ name: 'store_id' })
   store!: Store | null;
 
   @Column({ name: 'label', type: 'varchar', length: 100, nullable: true })
@@ -29,8 +31,11 @@ export class Address {
   @Column({ name: 'city', type: 'varchar', length: 100, nullable: false })
   city!: string;
 
-  @Column({ name: 'province', type: 'varchar', length: 100, nullable: true })
-  province!: string;
+  provinceId!: number | null;
+
+  @ManyToOne(() => Province, { nullable: true })
+  @JoinColumn({ name: 'province_id' })
+  province!: Province | null;
 
   @Column({ name: 'postal_code', type: 'varchar', length: 20, nullable: true })
   postalCode!: string;

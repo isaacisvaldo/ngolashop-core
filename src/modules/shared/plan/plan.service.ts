@@ -1,26 +1,35 @@
-import { Injectable } from '@nestjs/common';
-import { CreatePlanDto } from './dto/create-plan.dto';
-import { UpdatePlanDto } from './dto/update-plan.dto';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Plan } from './entities/plan.entity';
+import { PlanFeature } from './entities/plan-feature.entity';
 
 @Injectable()
 export class PlanService {
-  create(createPlanDto: CreatePlanDto) {
-    return 'This action adds a new plan';
+  constructor(
+    @InjectRepository(Plan)
+    private readonly planRepository: Repository<Plan>,
+    @InjectRepository(PlanFeature)
+    private readonly featureRepository: Repository<PlanFeature>,
+  ) {}
+
+  async findAll() {
+    const plans = await this.planRepository.find({
+      where: { isActive: true },
+      relations: { features: true },
+      order: { position: 'ASC' },
+    });
+    return plans;
   }
 
-  findAll() {
-    return `This action returns all plan`;
-  }
-
-  findOne(id: number) {
-    return `This action returns a #${id} plan`;
-  }
-
-  update(id: number, updatePlanDto: UpdatePlanDto) {
-    return `This action updates a #${id} plan`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} plan`;
+  async findOne(id: number) {
+    const plan = await this.planRepository.findOne({
+      where: { id },
+      relations: { features: true },
+    });
+    if (!plan) {
+      throw new NotFoundException(`Plan #${id} not found`);
+    }
+    return plan;
   }
 }

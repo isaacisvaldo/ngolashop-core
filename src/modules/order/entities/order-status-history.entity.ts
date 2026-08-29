@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
@@ -12,10 +13,10 @@ export class OrderStatusHistory {
   @PrimaryGeneratedColumn()
   id!: number;
 
-  @Column({ name: 'order_id', type: 'integer', nullable: false })
   orderId!: number;
 
   @ManyToOne(() => Order, (order) => order.statusHistory)
+  @JoinColumn({ name: 'order_id' })
   order!: Order;
 
   @Column({ name: 'status', type: 'varchar', length: 30, nullable: false })

@@ -15,6 +15,7 @@ import { User } from './entities/user.entity';
 import { AdminUser } from './entities/admin-user.entity';
 import { Store } from '../../store/entities/store.entity';
 import { Plan } from '../plan/entities/plan.entity';
+import { StoreSubscription } from '../../subscription/entities/subscription.entity';
 import { JwtPayload } from './decorators/current-user.decorator';
 
 @Injectable()
@@ -28,6 +29,8 @@ export class AuthService {
     private readonly storeRepository: Repository<Store>,
     @InjectRepository(Plan)
     private readonly planRepository: Repository<Plan>,
+    @InjectRepository(StoreSubscription)
+    private readonly subscriptionRepository: Repository<StoreSubscription>,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
   ) {}
@@ -63,10 +66,8 @@ export class AuthService {
       roleId: user.roleId,
     };
 
-    const [accessToken, refreshToken] = await Promise.all([
-      this.generateToken(payload, 15),
-      this.generateRefreshToken(),
-    ]);
+    const accessToken = await this.generateToken(payload, 15);
+    const refreshToken = this.generateRefreshToken();
 
     await this.adminUserRepository.update(user.id, { refreshToken });
 
@@ -105,12 +106,20 @@ export class AuthService {
       rootAdmin: user.rootAdmin,
     };
 
-    const [accessToken, refreshToken] = await Promise.all([
-      this.generateToken(payload, 15),
-      this.generateRefreshToken(),
-    ]);
+    const accessToken = await this.generateToken(payload, 15);
+    const refreshToken = this.generateRefreshToken();
 
     await this.userRepository.update(user.id, { refreshToken });
+
+    // Get active subscription
+    const now = new Date();
+    const subscription = await this.subscriptionRepository.findOne({
+      where: { storeId: user.storeId!, status: 'active' },
+      relations: { plan: true },
+      order: { createdAt: 'DESC' },
+    });
+
+    const isExpired = subscription?.endDate && subscription.endDate < now;
 
     return {
       accessToken,
@@ -123,6 +132,16 @@ export class AuthService {
         storeId: user.storeId,
         rootAdmin: user.rootAdmin,
       },
+      subscription:
+        subscription && !isExpired
+          ? {
+              id: subscription.id,
+              plan: subscription.plan,
+              startDate: subscription.startDate,
+              endDate: subscription.endDate,
+              status: subscription.status,
+            }
+          : null,
     };
   }
 
@@ -147,7 +166,6 @@ export class AuthService {
       name: dto.storeName,
       slug,
       whatsapp: dto.phone,
-      planId: freePlan?.id ?? null,
     });
     const savedStore = await this.storeRepository.save(store);
 
@@ -161,9 +179,18 @@ export class AuthService {
     });
     const savedUser = await this.userRepository.save(user);
 
-    // Update store with userId
-    savedStore.userId = savedUser.id;
-    await this.storeRepository.save(savedStore);
+    // Create subscription to free plan
+    if (freePlan) {
+      const now = new Date();
+      const sub = this.subscriptionRepository.create({
+        storeId: savedStore.id,
+        planId: freePlan.id,
+        startDate: now,
+        endDate: null, // Free plan - no expiry
+        status: 'active',
+      });
+      await this.subscriptionRepository.save(sub);
+    }
 
     const payload: JwtPayload = {
       sub: savedUser.id,
@@ -173,10 +200,8 @@ export class AuthService {
       rootAdmin: true,
     };
 
-    const [accessToken, refreshToken] = await Promise.all([
-      this.generateToken(payload, 15),
-      this.generateRefreshToken(),
-    ]);
+    const accessToken = await this.generateToken(payload, 15);
+    const refreshToken = this.generateRefreshToken();
 
     await this.userRepository.update(savedUser.id, { refreshToken });
 
@@ -207,10 +232,8 @@ export class AuthService {
         storeId: storeUser.storeId,
         rootAdmin: storeUser.rootAdmin,
       };
-      const [accessToken, newRefreshToken] = await Promise.all([
-        this.generateToken(payload, 15),
-        this.generateRefreshToken(),
-      ]);
+      const accessToken = await this.generateToken(payload, 15);
+      const newRefreshToken = this.generateRefreshToken();
       await this.userRepository.update(storeUser.id, {
         refreshToken: newRefreshToken,
       });
@@ -229,10 +252,8 @@ export class AuthService {
         rootAdmin: adminUser.isRoot,
         roleId: adminUser.roleId,
       };
-      const [accessToken, newRefreshToken] = await Promise.all([
-        this.generateToken(payload, 15),
-        this.generateRefreshToken(),
-      ]);
+      const accessToken = await this.generateToken(payload, 15);
+      const newRefreshToken = this.generateRefreshToken();
       await this.adminUserRepository.update(adminUser.id, {
         refreshToken: newRefreshToken,
       });
@@ -251,7 +272,7 @@ export class AuthService {
     });
   }
 
-  private async generateRefreshToken(): Promise<string> {
+  private generateRefreshToken(): string {
     return crypto.randomBytes(64).toString('hex');
   }
 

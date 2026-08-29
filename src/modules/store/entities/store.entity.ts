@@ -3,33 +3,19 @@ import {
   CreateDateColumn,
   DeleteDateColumn,
   Entity,
-  ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { User } from '../../../shared/auth/entities/user.entity';
-import { Product } from '../../../product/entities/product.entity';
-import { Order } from '../../../order/entities/order.entity';
-import { Plan } from '../../../shared/plan/entities/plan.entity';
-import { Address } from '../../../address/entities/address.entity';
+import { Product } from '../../product/entities/product.entity';
+import { Order } from '../../order/entities/order.entity';
+import { Address } from '../../address/entities/address.entity';
+import { StoreSubscription } from '../../subscription/entities/subscription.entity';
 
 @Entity({ name: 'tb_stores' })
 export class Store {
   @PrimaryGeneratedColumn()
   id!: number;
-
-  @Column({ name: 'user_id', type: 'integer', nullable: false })
-  userId!: number;
-
-  @ManyToOne(() => User, (user) => user.stores)
-  user!: User;
-
-  @Column({ name: 'plan_id', type: 'integer', nullable: true })
-  planId!: number | null;
-
-  @ManyToOne(() => Plan, { nullable: true })
-  plan!: Plan | null;
 
   @Column({ name: 'name', type: 'varchar', length: 150, nullable: false })
   name!: string;
@@ -122,5 +108,8 @@ export class Store {
   orders!: Order[];
 
   @OneToMany(() => Address, (address) => address.store)
-  addresses!: Address[];
+  addresses: Address[];
+
+  @OneToMany(() => StoreSubscription, (sub) => sub.store)
+  subscriptions!: StoreSubscription[];
 }

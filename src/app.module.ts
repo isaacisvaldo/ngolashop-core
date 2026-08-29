@@ -2,10 +2,18 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
 import { dataSourceOptions } from './database/data-source';
-import { StoreModule } from './modules/store/store.module';
 import { AuthModule } from './modules/shared/auth/auth.module';
+import { StoreModule } from './modules/store/store.module';
 import { CategoryModule } from './modules/shared/category/category.module';
 import { PlanModule } from './modules/shared/plan/plan.module';
+import { ProductModule } from './modules/product/product.module';
+import { OrderModule } from './modules/order/order.module';
+import { UserModule } from './modules/user/user.module';
+import { RoleModule } from './modules/shared/role/role.module';
+import { SubscriptionModule } from './modules/subscription/subscription.module';
+import { CountryModule } from './modules/shared/country/country.module';
+import { ProvinceModule } from './modules/shared/province/province.module';
+import { PaymentMethodModule } from './modules/payment-method/payment-method.module';
 
 @Module({
   imports: [
@@ -23,10 +31,18 @@ import { PlanModule } from './modules/shared/plan/plan.module';
       })(),
     }),
     TypeOrmModule.forRoot(dataSourceOptions),
-    StoreModule,
     AuthModule,
+    StoreModule,
     CategoryModule,
     PlanModule,
+    ProductModule,
+    OrderModule,
+    UserModule,
+    RoleModule,
+    SubscriptionModule,
+    CountryModule,
+    ProvinceModule,
+    PaymentMethodModule,
   ],
   controllers: [],
   providers: [],

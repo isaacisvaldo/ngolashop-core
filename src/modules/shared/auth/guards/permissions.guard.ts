@@ -3,11 +3,11 @@ import {
   CanActivate,
   ExecutionContext,
   UnauthorizedException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { JwtPayload } from '../decorators/current-user.decorator';
-
-export const REQUIRED_PERMISSIONS_KEY = 'required_permissions';
+import { REQUIRED_PERMISSIONS_KEY } from './constants';
 
 @Injectable()
 export class PermissionsGuard implements CanActivate {
@@ -23,20 +23,26 @@ export class PermissionsGuard implements CanActivate {
       return true;
     }
 
-    const request = context.switchToHttp().getRequest();
-    const user = request.user as JwtPayload;
+    const request = context.switchToHttp().getRequest<{ user?: JwtPayload }>();
+    const user = request.user;
 
     if (!user) {
       throw new UnauthorizedException();
     }
 
-    // Admin root has full access
+    // Root admin bypasses all permission checks
     if (user.type === 'admin' && user.rootAdmin) {
       return true;
     }
 
-    // TODO: check user.permissions against requiredPermissions
-    // For now, allow if authenticated
-    return true;
+    // For store users, check rootAdmin flag (root admin of store has full access)
+    if (user.type === 'store' && user.rootAdmin) {
+      return true;
+    }
+
+    // TODO: For non-root users, check their assigned permissions
+    // against requiredPermissions. This requires a user_permissions
+    // or role_permissions lookup. For now, deny access.
+    throw new ForbiddenException('Insufficient permissions');
   }
 }

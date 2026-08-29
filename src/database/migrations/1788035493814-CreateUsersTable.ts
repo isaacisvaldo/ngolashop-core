@@ -49,6 +49,17 @@ export class CreateUsersTable1788035493814 implements MigrationInterface {
             default: false,
           },
           {
+            name: 'store_id',
+            type: 'integer',
+            isNullable: true,
+          },
+          {
+            name: 'refresh_token',
+            type: 'varchar',
+            length: '512',
+            isNullable: true,
+          },
+          {
             name: 'created_at',
             type: 'timestamp',
             isNullable: false,

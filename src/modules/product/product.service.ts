@@ -71,7 +71,7 @@ export class ProductService {
   async findOne(id: number) {
     const product = await this.productRepo.findOne({
       where: { id },
-      relations: ['images'],
+      relations: { images: true },
     });
     if (!product) {
       throw new NotFoundException(`Product #${id} not found`);
@@ -90,7 +90,7 @@ export class ProductService {
     }
 
     if (updateProductDto.name) {
-      (product as any).slug = this.slugify(updateProductDto.name);
+      product.slug = this.slugify(updateProductDto.name);
     }
 
     Object.assign(product, updateProductDto);

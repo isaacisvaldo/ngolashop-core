@@ -5,7 +5,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, ILike } from 'typeorm';
+import { Repository } from 'typeorm';
 import { Store } from './entities/store.entity';
 import { CreateStoreDto } from './dto/create-store.dto';
 import { UpdateStoreDto } from './dto/update-store.dto';
@@ -17,7 +17,7 @@ export class StoreService {
     private readonly storeRepository: Repository<Store>,
   ) {}
 
-  async create(userId: number, createStoreDto: CreateStoreDto): Promise<Store> {
+  async create(createStoreDto: CreateStoreDto): Promise<Store> {
     const existingSlug = await this.storeRepository.findOne({
       where: { slug: createStoreDto.slug },
     });
@@ -25,7 +25,7 @@ export class StoreService {
       throw new ConflictException('A store with this slug already exists');
     }
 
-    const store = this.storeRepository.create({ ...createStoreDto, userId });
+    const store = this.storeRepository.create(createStoreDto);
     return this.storeRepository.save(store);
   }
 

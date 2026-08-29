@@ -113,11 +113,11 @@ export async function StorePlansSeed(dataSource: DataSource) {
 
     const featuresWithPlanId = features.map((feature) => ({
       ...feature,
-      plan_id: savedPlan.id,
+      plan: { id: savedPlan.id },
     }));
 
     await planFeatureRepository.upsert(featuresWithPlanId, {
-      conflictPaths: ['plan_id', 'text'],
+      conflictPaths: ['plan', 'text'],
       skipUpdateIfNoValuesChanged: true,
     });
   }

@@ -10,12 +10,13 @@ import { User } from './entities/user.entity';
 import { AdminUser } from './entities/admin-user.entity';
 import { Store } from '../../store/entities/store.entity';
 import { Plan } from '../plan/entities/plan.entity';
+import { StoreSubscription } from '../../subscription/entities/subscription.entity';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { PermissionsGuard } from './guards/permissions.guard';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, AdminUser, Store, Plan]),
+    TypeOrmModule.forFeature([User, AdminUser, Store, Plan, StoreSubscription]),
     PassportModule,
     JwtModule.registerAsync({
       useFactory: (configService: ConfigService) => ({
