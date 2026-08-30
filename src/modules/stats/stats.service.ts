@@ -230,4 +230,40 @@ export class StatsService {
 
     return [...locationMap.values()].sort((a, b) => b.revenue - a.revenue);
   }
+
+  async getStoreCustomers(storeId: number) {
+    const orders = await this.orderRepository.find({
+      where: { store: { id: storeId } },
+      order: { createdAt: 'DESC' },
+    });
+
+    const customerMap = new Map<string, {
+      name: string;
+      phone: string;
+      email: string | null;
+      orders: number;
+      totalSpent: number;
+      lastOrder: string;
+    }>();
+
+    for (const o of orders) {
+      const key = o.customerPhone || o.customerName;
+      const existing = customerMap.get(key);
+      if (existing) {
+        existing.orders += 1;
+        existing.totalSpent += Number(o.total);
+      } else {
+        customerMap.set(key, {
+          name: o.customerName,
+          phone: o.customerPhone,
+          email: o.customerEmail || null,
+          orders: 1,
+          totalSpent: Number(o.total),
+          lastOrder: o.createdAt.toISOString(),
+        });
+      }
+    }
+
+    return [...customerMap.values()].sort((a, b) => b.totalSpent - a.totalSpent);
+  }
 }

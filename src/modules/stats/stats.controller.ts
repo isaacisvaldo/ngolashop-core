@@ -15,4 +15,10 @@ export class StatsController {
   getMyStats(@CurrentUser('storeId') storeId: number) {
     return this.statsService.getStoreStats(storeId);
   }
+
+  @Get('customers')
+  @ApiOperation({ summary: 'Get current store customers' })
+  getMyCustomers(@CurrentUser('storeId') storeId: number) {
+    return this.statsService.getStoreCustomers(storeId);
+  }
 }

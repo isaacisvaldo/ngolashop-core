@@ -91,7 +91,8 @@ export class StoreService {
     }
 
     Object.assign(store, updateStoreDto);
-    return this.storeRepository.save(store);
+    await this.storeRepository.save(store);
+    return this.storeRepository.findOne({ where: { id } }) as Promise<Store>;
   }
 
   async remove(id: number): Promise<void> {

@@ -41,7 +41,7 @@ export class UserService {
 
     // Check user limit from active subscription
     const subscription = await this.subscriptionRepository.findOne({
-      where: { storeId, status: 'active' },
+      where: { store: { id: storeId }, status: 'active' },
       relations: { plan: true },
       order: { createdAt: 'DESC' },
     });

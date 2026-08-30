@@ -26,15 +26,11 @@ export class UserController {
   constructor(private readonly userService: UserService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Create user (root admin only)' })
+  @ApiOperation({ summary: 'Create user for current store' })
   create(
     @CurrentUser('storeId') storeId: number,
-    @CurrentUser('rootAdmin') rootAdmin: boolean,
     @Body() createUserDto: CreateUserDto,
   ) {
-    if (!rootAdmin) {
-      throw new ForbiddenException('Only root admin can create users');
-    }
     return this.userService.create(storeId, createUserDto);
   }
 
@@ -57,29 +53,21 @@ export class UserController {
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: 'Update user (root admin only)' })
+  @ApiOperation({ summary: 'Update user' })
   update(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser('storeId') storeId: number,
-    @CurrentUser('rootAdmin') rootAdmin: boolean,
     @Body() updateUserDto: UpdateUserDto,
   ) {
-    if (!rootAdmin) {
-      throw new ForbiddenException('Only root admin can update users');
-    }
     return this.userService.update(id, storeId, updateUserDto);
   }
 
   @Delete(':id')
-  @ApiOperation({ summary: 'Delete user (root admin only)' })
+  @ApiOperation({ summary: 'Delete user' })
   remove(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser('storeId') storeId: number,
-    @CurrentUser('rootAdmin') rootAdmin: boolean,
   ) {
-    if (!rootAdmin) {
-      throw new ForbiddenException('Only root admin can delete users');
-    }
     return this.userService.remove(id, storeId);
   }
 }

@@ -35,7 +35,7 @@ export class ProductService {
     const slug = this.slugify(createProductDto.name);
     const product = this.productRepo.create({
       ...createProductDto,
-      storeId,
+      store: { id: storeId },
       slug,
     });
     return this.productRepo.save(product);
@@ -50,10 +50,10 @@ export class ProductService {
     const qb = this.productRepo.createQueryBuilder('product');
 
     if (storeId) {
-      qb.andWhere('product.storeId = :storeId', { storeId });
+      qb.andWhere('product.store_id = :storeId', { storeId });
     }
     if (categoryId) {
-      qb.andWhere('product.categoryId = :categoryId', { categoryId });
+      qb.andWhere('product.category_id = :categoryId', { categoryId });
     }
 
     const [data, total] = await qb
@@ -76,7 +76,7 @@ export class ProductService {
   async findOne(id: number) {
     const product = await this.productRepo.findOne({
       where: { id },
-      relations: { images: true },
+      relations: { images: true, store: true },
     });
     if (!product) {
       throw new NotFoundException(`Product #${id} not found`);
@@ -90,7 +90,7 @@ export class ProductService {
     storeId: number,
   ) {
     const product = await this.findOne(id);
-    if (product.storeId !== storeId) {
+    if (product.store?.id !== storeId) {
       throw new ForbiddenException('You can only update your own products');
     }
 
@@ -104,7 +104,7 @@ export class ProductService {
 
   async remove(id: number, storeId: number) {
     const product = await this.findOne(id);
-    if (product.storeId !== storeId) {
+    if (product.store?.id !== storeId) {
       throw new ForbiddenException('You can only remove your own products');
     }
     return this.productRepo.remove(product);
@@ -116,29 +116,36 @@ export class ProductService {
     storeId: number,
   ) {
     const product = await this.findOne(productId);
-    if (product.storeId !== storeId) {
+    if (product.store?.id !== storeId) {
       throw new ForbiddenException(
         'You can only add images to your own products',
       );
     }
 
+    const currentCount = await this.imageRepo.count({
+      where: { product: { id: productId } },
+    });
+    if (currentCount >= 3) {
+      throw new ForbiddenException('Maximum 3 images per product');
+    }
+
     const image = this.imageRepo.create({
       ...createImageDto,
-      productId,
+      product: { id: productId },
     });
     return this.imageRepo.save(image);
   }
 
   async removeImage(productId: number, imageId: number, storeId: number) {
     const product = await this.findOne(productId);
-    if (product.storeId !== storeId) {
+    if (product.store?.id !== storeId) {
       throw new ForbiddenException(
         'You can only remove images from your own products',
       );
     }
 
     const image = await this.imageRepo.findOne({
-      where: { id: imageId, productId },
+      where: { id: imageId, product: { id: productId } },
     });
     if (!image) {
       throw new NotFoundException(
