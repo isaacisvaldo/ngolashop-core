@@ -42,6 +42,46 @@ export class StoreSubscription {
   })
   status!: string;
 
+  @Column({
+    name: 'payment_status',
+    type: 'varchar',
+    length: 30,
+    nullable: false,
+    default: 'paid',
+  })
+  paymentStatus!: string;
+
+  @Column({
+    name: 'amount',
+    type: 'decimal',
+    precision: 12,
+    scale: 2,
+    nullable: true,
+  })
+  amount!: number | null;
+
+  @Column({
+    name: 'duration_days',
+    type: 'integer',
+    nullable: true,
+  })
+  durationDays!: number | null;
+
+  @Column({
+    name: 'paid_at',
+    type: 'timestamp',
+    nullable: true,
+  })
+  paidAt!: Date | null;
+
+  @Column({
+    name: 'payment_ref',
+    type: 'varchar',
+    length: 200,
+    nullable: true,
+  })
+  paymentRef!: string | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamp', nullable: false })
   createdAt!: Date;
 

@@ -104,29 +104,61 @@ export class SubscriptionService {
     }
 
     const targetPlan = await this.planRepository.findOne({ where: { id: activePlanId } });
-    if (targetPlan && Number(targetPlan.price) === 0) {
+    if (!targetPlan) {
+      throw new NotFoundException('Plan not found');
+    }
+    if (Number(targetPlan.price) === 0) {
       throw new BadRequestException('Não é possível renovar ou escolher o plano Grátis');
     }
 
-    if (current) {
-      const base =
-        current.endDate && current.endDate > now ? current.endDate : now;
-      current.endDate = new Date(base.getTime() + days * 24 * 60 * 60 * 1000);
-      current.status = 'active';
-      if (planId && planId !== current.plan?.id) {
-        current.plan = { id: planId } as any;
-      }
-      return this.subscriptionRepository.save(current);
+    let amount = Number(targetPlan.price);
+    if (durationDays && durationDays >= 90 && targetPlan.priceQuarterly) {
+      amount = Number(targetPlan.priceQuarterly);
+    } else if (durationDays && durationDays >= 365 && targetPlan.priceAnnual) {
+      amount = Number(targetPlan.priceAnnual);
+    } else {
+      amount = Number(targetPlan.price) * Math.ceil(days / 30);
     }
 
     const sub = this.subscriptionRepository.create({
       store: { id: storeId },
       plan: { id: activePlanId },
-      startDate: now,
-      endDate: new Date(now.getTime() + days * 24 * 60 * 60 * 1000),
-      status: 'active',
+      startDate: current?.endDate && current.endDate > now ? current.endDate : now,
+      endDate: null,
+      status: 'pending',
+      paymentStatus: 'pending',
+      amount,
+      durationDays: days,
     });
     return this.subscriptionRepository.save(sub);
+  }
+
+  async confirmPayment(subId: number, paymentRef?: string) {
+    const sub = await this.findOne(subId);
+    if (sub.paymentStatus !== 'pending') {
+      throw new BadRequestException('Subscription is not pending payment');
+    }
+
+    const now = new Date();
+    sub.paymentStatus = 'paid';
+    sub.status = 'active';
+    sub.paidAt = now;
+    sub.paymentRef = paymentRef || null;
+
+    const days = sub.durationDays || 30;
+    const base = sub.startDate && sub.startDate > now ? sub.startDate : now;
+    sub.startDate = base;
+    sub.endDate = new Date(base.getTime() + days * 24 * 60 * 60 * 1000);
+
+    return this.subscriptionRepository.save(sub);
+  }
+
+  async getPendingByStore(storeId: number) {
+    return this.subscriptionRepository.findOne({
+      where: { store: { id: storeId }, paymentStatus: 'pending' },
+      relations: { plan: true },
+      order: { createdAt: 'DESC' },
+    });
   }
 
   async checkStoreLimit(

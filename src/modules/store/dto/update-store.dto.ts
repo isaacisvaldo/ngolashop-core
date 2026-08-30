@@ -68,4 +68,8 @@ export class UpdateStoreDto {
     horario: string;
     faq: { pergunta: string; resposta: string }[];
   };
+
+  @IsArray()
+  @IsOptional()
+  tags?: string[];
 }

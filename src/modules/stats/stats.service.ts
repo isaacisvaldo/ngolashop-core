@@ -189,6 +189,45 @@ export class StatsService {
       topProducts,
       topCustomers,
       dailyRevenue,
+      salesByLocation: this.buildLocationData(allOrders),
     };
+  }
+
+  private buildLocationData(orders: Order[]) {
+    const locationMap = new Map<string, {
+      province: string;
+      city: string;
+      lat: number;
+      lng: number;
+      orders: number;
+      revenue: number;
+    }>();
+
+    for (const o of orders) {
+      const province = o.customerProvince || 'Desconhecido';
+      const city = o.customerCity || 'Desconhecido';
+      const lat = o.customerLat ? Number(o.customerLat) : null;
+      const lng = o.customerLng ? Number(o.customerLng) : null;
+
+      if (!lat || !lng) continue;
+
+      const key = `${province}-${city}`;
+      const existing = locationMap.get(key);
+      if (existing) {
+        existing.orders += 1;
+        existing.revenue += Number(o.total);
+      } else {
+        locationMap.set(key, {
+          province,
+          city,
+          lat,
+          lng,
+          orders: 1,
+          revenue: Number(o.total),
+        });
+      }
+    }
+
+    return [...locationMap.values()].sort((a, b) => b.revenue - a.revenue);
   }
 }

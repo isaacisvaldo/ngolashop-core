@@ -52,6 +52,18 @@ export class Order {
   @Column({ name: 'shipping_address', type: 'text', nullable: true })
   shippingAddress!: string;
 
+  @Column({ name: 'customer_province', type: 'varchar', length: 100, nullable: true })
+  customerProvince!: string;
+
+  @Column({ name: 'customer_city', type: 'varchar', length: 100, nullable: true })
+  customerCity!: string;
+
+  @Column({ name: 'customer_lat', type: 'decimal', precision: 10, scale: 7, nullable: true })
+  customerLat!: number | null;
+
+  @Column({ name: 'customer_lng', type: 'decimal', precision: 10, scale: 7, nullable: true })
+  customerLng!: number | null;
+
   @Column({
     name: 'status',
     type: 'varchar',

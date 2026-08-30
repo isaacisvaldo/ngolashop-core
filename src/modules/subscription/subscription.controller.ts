@@ -35,6 +35,12 @@ export class SubscriptionController {
     return this.subscriptionService.findActiveByStore(storeId);
   }
 
+  @Get('my/pending')
+  @ApiOperation({ summary: 'Get pending payment subscription' })
+  getMyPending(@CurrentUser('storeId') storeId: number) {
+    return this.subscriptionService.getPendingByStore(storeId);
+  }
+
   @Get('store/:storeId')
   @ApiOperation({ summary: 'List subscriptions for a store' })
   findAll(
@@ -73,5 +79,14 @@ export class SubscriptionController {
     @Body('durationDays') durationDays?: number,
   ) {
     return this.subscriptionService.renew(storeId, planId, durationDays);
+  }
+
+  @Post(':id/pay')
+  @ApiOperation({ summary: 'Confirm payment for pending subscription' })
+  confirmPayment(
+    @Param('id', ParseIntPipe) id: number,
+    @Body('paymentRef') paymentRef?: string,
+  ) {
+    return this.subscriptionService.confirmPayment(id, paymentRef);
   }
 }

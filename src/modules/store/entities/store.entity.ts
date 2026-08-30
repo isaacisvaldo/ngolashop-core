@@ -164,6 +164,13 @@ export class Store {
     faq: { pergunta: string; resposta: string }[];
   } | null;
 
+  @Column({
+    name: 'tags',
+    type: 'jsonb',
+    nullable: true,
+  })
+  tags!: string[] | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamp', nullable: false })
   createdAt!: Date;
 
