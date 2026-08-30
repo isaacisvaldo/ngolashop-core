@@ -57,7 +57,10 @@ export class StoreService {
   }
 
   async findBySlug(slug: string): Promise<Store> {
-    const store = await this.storeRepository.findOne({ where: { slug } });
+    const store = await this.storeRepository.findOne({
+      where: { slug },
+      relations: { category: true, products: true },
+    });
     if (!store) {
       throw new NotFoundException(`Store with slug "${slug}" not found`);
     }

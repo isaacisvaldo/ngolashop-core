@@ -78,6 +78,14 @@ export class Product {
   isActive!: boolean;
 
   @Column({
+    name: 'is_published',
+    type: 'boolean',
+    nullable: false,
+    default: false,
+  })
+  isPublished!: boolean;
+
+  @Column({
     name: 'is_featured',
     type: 'boolean',
     nullable: false,

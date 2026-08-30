@@ -41,7 +41,12 @@ export class ProductService {
     return this.productRepo.save(product);
   }
 
-  async findAll(page = 1, limit = 10, storeId?: number, categoryId?: number) {
+  async findAll(
+    page = 1,
+    limit = 10,
+    storeId?: number,
+    categoryId?: number,
+  ) {
     const qb = this.productRepo.createQueryBuilder('product');
 
     if (storeId) {

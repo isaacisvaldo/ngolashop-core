@@ -11,18 +11,22 @@ import {
   ForbiddenException,
   ParseIntPipe,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { PaginationQueryDto } from '../../common/dtos/pagination-query.dto';
 import { JwtAuthGuard } from '../shared/auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../shared/auth/decorators/current-user.decorator';
 
+@ApiTags('Users')
 @Controller('user')
 @UseGuards(JwtAuthGuard)
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
   @Post()
+  @ApiOperation({ summary: 'Create user (root admin only)' })
   create(
     @CurrentUser('storeId') storeId: number,
     @CurrentUser('rootAdmin') rootAdmin: boolean,
@@ -35,19 +39,16 @@ export class UserController {
   }
 
   @Get()
+  @ApiOperation({ summary: 'List users for current store' })
   findAll(
     @CurrentUser('storeId') storeId: number,
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
+    @Query() query: PaginationQueryDto,
   ) {
-    return this.userService.findAll(
-      storeId,
-      page ? +page : 1,
-      limit ? +limit : 10,
-    );
+    return this.userService.findAll(storeId, query.page, query.limit);
   }
 
   @Get(':id')
+  @ApiOperation({ summary: 'Get user by ID' })
   findOne(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser('storeId') storeId: number,
@@ -56,6 +57,7 @@ export class UserController {
   }
 
   @Patch(':id')
+  @ApiOperation({ summary: 'Update user (root admin only)' })
   update(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser('storeId') storeId: number,
@@ -69,6 +71,7 @@ export class UserController {
   }
 
   @Delete(':id')
+  @ApiOperation({ summary: 'Delete user (root admin only)' })
   remove(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser('storeId') storeId: number,

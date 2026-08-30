@@ -14,6 +14,9 @@ import { SubscriptionModule } from './modules/subscription/subscription.module';
 import { CountryModule } from './modules/shared/country/country.module';
 import { ProvinceModule } from './modules/shared/province/province.module';
 import { PaymentMethodModule } from './modules/payment-method/payment-method.module';
+import { EmailModule } from './modules/shared/email/email.module';
+import { UploadModule } from './modules/shared/upload/upload.module';
+import { StatsModule } from './modules/stats/stats.module';
 
 @Module({
   imports: [
@@ -31,6 +34,8 @@ import { PaymentMethodModule } from './modules/payment-method/payment-method.mod
       })(),
     }),
     TypeOrmModule.forRoot(dataSourceOptions),
+    EmailModule,
+    UploadModule,
     AuthModule,
     StoreModule,
     CategoryModule,
@@ -43,6 +48,7 @@ import { PaymentMethodModule } from './modules/payment-method/payment-method.mod
     CountryModule,
     ProvinceModule,
     PaymentMethodModule,
+    StatsModule,
   ],
   controllers: [],
   providers: [],

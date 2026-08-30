@@ -1,6 +1,7 @@
 import { Controller, Get, Param, Query, ParseIntPipe } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { ProvinceService } from './province.service';
+import { ProvinceFilterDto } from './dto/province-filter.dto';
 
 @ApiTags('Provinces')
 @Controller('province')
@@ -9,9 +10,8 @@ export class ProvinceController {
 
   @Get()
   @ApiOperation({ summary: 'List provinces (optionally filter by country)' })
-  @ApiQuery({ name: 'countryId', required: false, type: Number })
-  findAll(@Query('countryId') countryId?: string) {
-    return this.provinceService.findAll(countryId ? +countryId : undefined);
+  findAll(@Query() query: ProvinceFilterDto) {
+    return this.provinceService.findAll(query.countryId);
   }
 
   @Get(':id')

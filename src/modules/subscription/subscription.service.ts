@@ -6,6 +6,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThanOrEqual } from 'typeorm';
 import { StoreSubscription } from './entities/subscription.entity';
+import { Plan } from '../shared/plan/entities/plan.entity';
 import { CreateSubscriptionDto } from './dto/create-subscription.dto';
 import { UpdateSubscriptionDto } from './dto/update-subscription.dto';
 
@@ -14,12 +15,14 @@ export class SubscriptionService {
   constructor(
     @InjectRepository(StoreSubscription)
     private readonly subscriptionRepository: Repository<StoreSubscription>,
+    @InjectRepository(Plan)
+    private readonly planRepository: Repository<Plan>,
   ) {}
 
   async create(dto: CreateSubscriptionDto) {
     const sub = this.subscriptionRepository.create({
-      storeId: dto.storeId,
-      planId: dto.planId,
+      store: { id: dto.storeId },
+      plan: { id: dto.planId },
       startDate: new Date(dto.startDate),
       endDate: dto.endDate ? new Date(dto.endDate) : null,
       status: 'active',
@@ -29,7 +32,7 @@ export class SubscriptionService {
 
   async findAll(storeId: number, page = 1, limit = 10) {
     const [data, total] = await this.subscriptionRepository.findAndCount({
-      where: { storeId },
+      where: { store: { id: storeId } },
       relations: { plan: true },
       order: { createdAt: 'DESC' },
       skip: (page - 1) * limit,
@@ -45,7 +48,7 @@ export class SubscriptionService {
     const now = new Date();
     const sub = await this.subscriptionRepository.findOne({
       where: {
-        storeId,
+        store: { id: storeId },
         status: 'active',
         startDate: LessThanOrEqual(now),
       },
@@ -74,7 +77,7 @@ export class SubscriptionService {
   async update(id: number, dto: UpdateSubscriptionDto) {
     const sub = await this.findOne(id);
 
-    if (dto.planId !== undefined) sub.planId = dto.planId;
+    if (dto.planId !== undefined) sub.plan = { id: dto.planId } as any;
     if (dto.endDate !== undefined) sub.endDate = new Date(dto.endDate);
     if (dto.status !== undefined) sub.status = dto.status;
 
@@ -87,6 +90,42 @@ export class SubscriptionService {
       throw new BadRequestException('Subscription is not active');
     }
     sub.status = 'cancelled';
+    return this.subscriptionRepository.save(sub);
+  }
+
+  async renew(storeId: number, planId?: number, durationDays?: number) {
+    const now = new Date();
+    const days = durationDays && durationDays > 0 ? durationDays : 30;
+    const current = await this.findActiveByStore(storeId);
+
+    const activePlanId = planId ?? current?.plan?.id;
+    if (!activePlanId) {
+      throw new BadRequestException('No plan specified and no active subscription found');
+    }
+
+    const targetPlan = await this.planRepository.findOne({ where: { id: activePlanId } });
+    if (targetPlan && Number(targetPlan.price) === 0) {
+      throw new BadRequestException('Não é possível renovar ou escolher o plano Grátis');
+    }
+
+    if (current) {
+      const base =
+        current.endDate && current.endDate > now ? current.endDate : now;
+      current.endDate = new Date(base.getTime() + days * 24 * 60 * 60 * 1000);
+      current.status = 'active';
+      if (planId && planId !== current.plan?.id) {
+        current.plan = { id: planId } as any;
+      }
+      return this.subscriptionRepository.save(current);
+    }
+
+    const sub = this.subscriptionRepository.create({
+      store: { id: storeId },
+      plan: { id: activePlanId },
+      startDate: now,
+      endDate: new Date(now.getTime() + days * 24 * 60 * 60 * 1000),
+      status: 'active',
+    });
     return this.subscriptionRepository.save(sub);
   }
 

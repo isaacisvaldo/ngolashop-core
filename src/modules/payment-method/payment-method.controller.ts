@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../shared/auth/guards/jwt-auth.guard';
+import { PaginationQueryDto } from '../../common/dtos/pagination-query.dto';
 import { PaymentMethodService } from './payment-method.service';
 import { CreatePaymentMethodDto } from './dto/create-payment-method.dto';
 import { UpdatePaymentMethodDto } from './dto/update-payment-method.dto';
@@ -30,8 +31,8 @@ export class PaymentMethodController {
   @Get('admin')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'List all payment methods (admin, paginated)' })
-  findAllAdmin(@Query('page') page?: string, @Query('limit') limit?: string) {
-    return this.service.findAll(page ? +page : 1, limit ? +limit : 10);
+  findAllAdmin(@Query() query: PaginationQueryDto) {
+    return this.service.findAll(query.page, query.limit);
   }
 
   @Get(':id')

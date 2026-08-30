@@ -12,6 +12,7 @@ import {
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../shared/auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../shared/auth/decorators/current-user.decorator';
+import { PaginationQueryDto } from '../../common/dtos/pagination-query.dto';
 import { SubscriptionService } from './subscription.service';
 import { CreateSubscriptionDto } from './dto/create-subscription.dto';
 import { UpdateSubscriptionDto } from './dto/update-subscription.dto';
@@ -38,14 +39,9 @@ export class SubscriptionController {
   @ApiOperation({ summary: 'List subscriptions for a store' })
   findAll(
     @Param('storeId', ParseIntPipe) storeId: number,
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
+    @Query() query: PaginationQueryDto,
   ) {
-    return this.subscriptionService.findAll(
-      storeId,
-      page ? +page : 1,
-      limit ? +limit : 10,
-    );
+    return this.subscriptionService.findAll(storeId, query.page, query.limit);
   }
 
   @Get(':id')
@@ -67,5 +63,15 @@ export class SubscriptionController {
   @ApiOperation({ summary: 'Cancel subscription' })
   cancel(@Param('id', ParseIntPipe) id: number) {
     return this.subscriptionService.cancel(id);
+  }
+
+  @Post('renew')
+  @ApiOperation({ summary: 'Renew current store subscription' })
+  renew(
+    @CurrentUser('storeId') storeId: number,
+    @Body('planId') planId?: number,
+    @Body('durationDays') durationDays?: number,
+  ) {
+    return this.subscriptionService.renew(storeId, planId, durationDays);
   }
 }

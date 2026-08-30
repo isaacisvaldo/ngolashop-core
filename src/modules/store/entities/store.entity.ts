@@ -3,6 +3,8 @@ import {
   CreateDateColumn,
   DeleteDateColumn,
   Entity,
+  JoinColumn,
+  ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
@@ -11,6 +13,7 @@ import { Product } from '../../product/entities/product.entity';
 import { Order } from '../../order/entities/order.entity';
 import { Address } from '../../address/entities/address.entity';
 import { StoreSubscription } from '../../subscription/entities/subscription.entity';
+import { Category } from '../../shared/category/entities/category.entity';
 
 @Entity({ name: 'tb_stores' })
 export class Store {
@@ -41,6 +44,12 @@ export class Store {
   @Column({ name: 'whatsapp', type: 'varchar', length: 20, nullable: false })
   whatsapp!: string;
 
+  categoryId!: number | null;
+
+  @ManyToOne(() => Category)
+  @JoinColumn({ name: 'category_id' })
+  category!: Category | null;
+
   @Column({
     name: 'primary_color',
     type: 'varchar',
@@ -64,6 +73,14 @@ export class Store {
     default: true,
   })
   isActive!: boolean;
+
+  @Column({
+    name: 'is_published',
+    type: 'boolean',
+    nullable: false,
+    default: false,
+  })
+  isPublished!: boolean;
 
   @Column({
     name: 'has_logistics',
@@ -91,6 +108,61 @@ export class Store {
     default: 0,
   })
   averageRating!: number;
+
+  @Column({
+    name: 'address',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
+  address!: string | null;
+
+  @Column({
+    name: 'pickup_location',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
+  pickupLocation!: string | null;
+
+  @Column({
+    name: 'social_links',
+    type: 'jsonb',
+    nullable: true,
+  })
+  socialLinks!: { id: string; nome: string; url: string }[] | null;
+
+  @Column({
+    name: 'delivery_zones',
+    type: 'jsonb',
+    nullable: true,
+  })
+  deliveryZones!: { id: string; nome: string; custo: number; prazoDias: number }[] | null;
+
+  @Column({
+    name: 'payments',
+    type: 'jsonb',
+    nullable: true,
+  })
+  payments!: {
+    multicaixa: boolean;
+    multicaixaRef: string;
+    transferencia: boolean;
+    transferenciaDados: string;
+    entrega: boolean;
+  } | null;
+
+  @Column({
+    name: 'chatbot',
+    type: 'jsonb',
+    nullable: true,
+  })
+  chatbot!: {
+    nome: string;
+    boasVindas: string;
+    horario: string;
+    faq: { pergunta: string; resposta: string }[];
+  } | null;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamp', nullable: false })
   createdAt!: Date;

@@ -17,6 +17,7 @@ import { Store } from '../../store/entities/store.entity';
 import { Plan } from '../plan/entities/plan.entity';
 import { StoreSubscription } from '../../subscription/entities/subscription.entity';
 import { JwtPayload } from './decorators/current-user.decorator';
+import { EmailService } from '../email/email.service';
 
 @Injectable()
 export class AuthService {
@@ -33,6 +34,7 @@ export class AuthService {
     private readonly subscriptionRepository: Repository<StoreSubscription>,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly emailService: EmailService,
   ) {}
 
   async login(dto: LoginDto) {
@@ -114,7 +116,7 @@ export class AuthService {
     // Get active subscription
     const now = new Date();
     const subscription = await this.subscriptionRepository.findOne({
-      where: { storeId: user.storeId!, status: 'active' },
+      where: { store: { id: user.storeId! }, status: 'active' },
       relations: { plan: true },
       order: { createdAt: 'DESC' },
     });
@@ -153,24 +155,51 @@ export class AuthService {
       throw new ConflictException('Email already in use');
     }
 
-    const hashedPassword = await bcrypt.hash(dto.password, 10);
-
-    // Default to free plan
-    const freePlan = await this.planRepository.findOne({
-      where: { name: 'Grátis' },
+    const phoneExists = await this.userRepository.findOne({
+      where: { phone: dto.phone },
     });
+    if (phoneExists) {
+      throw new ConflictException('Phone number already in use');
+    }
 
     const slug = this.slugify(dto.storeName);
+    const existingSlug = await this.storeRepository.findOne({
+      where: { slug },
+    });
+    if (existingSlug) {
+      throw new ConflictException('A store with this name already exists');
+    }
+
+    // Resolve plan: use provided planId or default to free plan
+    let plan: Plan | null = null;
+    if (dto.planId) {
+      plan = await this.planRepository.findOne({
+        where: { id: dto.planId, isActive: true },
+      });
+      if (!plan) {
+        throw new ConflictException('Invalid or inactive plan');
+      }
+    } else {
+      plan = await this.planRepository.findOne({
+        where: { name: 'Grátis' },
+      });
+    }
+
+    // Generate random password
+    const generatedPassword = this.generatePassword();
+    const hashedPassword = await bcrypt.hash(generatedPassword, 10);
 
     const store = this.storeRepository.create({
       name: dto.storeName,
       slug,
       whatsapp: dto.phone,
+      ...(dto.categoryId && { categoryId: dto.categoryId }),
+      ...(dto.logoUrl && { logoUrl: dto.logoUrl }),
     });
     const savedStore = await this.storeRepository.save(store);
 
     const user = this.userRepository.create({
-      name: dto.name,
+      name: dto.storeName,
       email: dto.email,
       password: hashedPassword,
       phone: dto.phone,
@@ -179,14 +208,17 @@ export class AuthService {
     });
     const savedUser = await this.userRepository.save(user);
 
-    // Create subscription to free plan
-    if (freePlan) {
+    // Create subscription to selected plan (1 month from now)
+    if (plan) {
       const now = new Date();
+      const endDate = new Date(now);
+      endDate.setMonth(endDate.getMonth() + 1);
+
       const sub = this.subscriptionRepository.create({
-        storeId: savedStore.id,
-        planId: freePlan.id,
+        store: savedStore,
+        plan,
         startDate: now,
-        endDate: null, // Free plan - no expiry
+        endDate,
         status: 'active',
       });
       await this.subscriptionRepository.save(sub);
@@ -204,6 +236,14 @@ export class AuthService {
     const refreshToken = this.generateRefreshToken();
 
     await this.userRepository.update(savedUser.id, { refreshToken });
+
+    await this.emailService.sendStoreCredentials(
+      dto.email,
+      dto.storeName,
+      dto.storeName,
+      dto.email,
+      generatedPassword,
+    );
 
     return {
       accessToken,
@@ -274,6 +314,21 @@ export class AuthService {
 
   private generateRefreshToken(): string {
     return crypto.randomBytes(64).toString('hex');
+  }
+
+  private generatePassword(): string {
+    const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const lower = 'abcdefghijklmnopqrstuvwxyz';
+    const digits = '0123456789';
+    const chars = upper + lower + digits;
+    let password = '';
+    password += upper[Math.floor(Math.random() * upper.length)];
+    password += lower[Math.floor(Math.random() * lower.length)];
+    password += digits[Math.floor(Math.random() * digits.length)];
+    for (let i = 3; i < 12; i++) {
+      password += chars[Math.floor(Math.random() * chars.length)];
+    }
+    return password.split('').sort(() => Math.random() - 0.5).join('');
   }
 
   private slugify(text: string): string {

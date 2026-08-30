@@ -1,7 +1,6 @@
 import {
   Controller,
   Get,
-  Post,
   Body,
   Patch,
   Param,
@@ -9,10 +8,10 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { StoreService } from './store.service';
-import { CreateStoreDto } from './dto/create-store.dto';
 import { UpdateStoreDto } from './dto/update-store.dto';
+import { PaginationQueryDto } from '../../common/dtos/pagination-query.dto';
 import { JwtAuthGuard } from '../shared/auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../shared/auth/decorators/current-user.decorator';
 
@@ -21,16 +20,10 @@ import { CurrentUser } from '../shared/auth/decorators/current-user.decorator';
 export class StoreController {
   constructor(private readonly storeService: StoreService) {}
 
-  @Post()
-  @ApiOperation({ summary: 'Create a new store (public)' })
-  create(@Body() createStoreDto: CreateStoreDto) {
-    return this.storeService.create(createStoreDto);
-  }
-
   @Get()
   @ApiOperation({ summary: 'List all stores' })
-  findAll(@Query('page') page?: string, @Query('limit') limit?: string) {
-    return this.storeService.findAll(page ? +page : 1, limit ? +limit : 10);
+  findAll(@Query() query: PaginationQueryDto) {
+    return this.storeService.findAll(query.page, query.limit);
   }
 
   @Get('me')

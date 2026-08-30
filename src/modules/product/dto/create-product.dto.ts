@@ -48,4 +48,8 @@ export class CreateProductDto {
   @ApiProperty({ example: false })
   @IsBoolean()
   isFeatured: boolean = false;
+
+  @ApiProperty({ example: false })
+  @IsBoolean()
+  isPublished: boolean = false;
 }

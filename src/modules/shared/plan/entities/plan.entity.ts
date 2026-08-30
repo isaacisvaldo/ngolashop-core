@@ -33,6 +33,24 @@ export class Plan {
   })
   price!: number;
 
+  @Column({
+    name: 'price_quarterly',
+    type: 'decimal',
+    precision: 12,
+    scale: 2,
+    nullable: true,
+  })
+  priceQuarterly!: number | null;
+
+  @Column({
+    name: 'price_annual',
+    type: 'decimal',
+    precision: 12,
+    scale: 2,
+    nullable: true,
+  })
+  priceAnnual!: number | null;
+
   @Column({ name: 'description', type: 'varchar', length: 255, nullable: true })
   description!: string;
 
