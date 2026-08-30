@@ -8,7 +8,7 @@ import { CategoryModule } from './modules/shared/category/category.module';
 import { PlanModule } from './modules/shared/plan/plan.module';
 import { ProductModule } from './modules/product/product.module';
 import { OrderModule } from './modules/order/order.module';
-import { UserModule } from './modules/user/user.module';
+import { UserModule } from './modules/store/user/user.module';
 import { RoleModule } from './modules/shared/role/role.module';
 import { SubscriptionModule } from './modules/subscription/subscription.module';
 import { CountryModule } from './modules/shared/country/country.module';
@@ -17,6 +17,8 @@ import { PaymentMethodModule } from './modules/payment-method/payment-method.mod
 import { EmailModule } from './modules/shared/email/email.module';
 import { UploadModule } from './modules/shared/upload/upload.module';
 import { StatsModule } from './modules/stats/stats.module';
+import { AdminUserModule } from './modules/admin-user/admin-user.module';
+import { PermissionModule } from './modules/permission/permission.module';
 
 @Module({
   imports: [
@@ -49,6 +51,8 @@ import { StatsModule } from './modules/stats/stats.module';
     ProvinceModule,
     PaymentMethodModule,
     StatsModule,
+    AdminUserModule,
+    PermissionModule,
   ],
   controllers: [],
   providers: [],

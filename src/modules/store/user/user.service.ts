@@ -7,9 +7,9 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
-import { User } from '../shared/auth/entities/user.entity';
-import { Store } from '../store/entities/store.entity';
-import { StoreSubscription } from '../subscription/entities/subscription.entity';
+import { User } from '../../shared/auth/entities/user.entity';
+import { Store } from '../entities/store.entity';
+import { StoreSubscription } from '../../subscription/entities/subscription.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 

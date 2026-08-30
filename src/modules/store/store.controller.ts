@@ -13,6 +13,7 @@ import { StoreService } from './store.service';
 import { UpdateStoreDto } from './dto/update-store.dto';
 import { PaginationQueryDto } from '../../common/dtos/pagination-query.dto';
 import { JwtAuthGuard } from '../shared/auth/guards/jwt-auth.guard';
+import { AdminGuard } from '../shared/auth/guards/admin.guard';
 import { CurrentUser } from '../shared/auth/decorators/current-user.decorator';
 
 @ApiTags('Stores')
@@ -48,6 +49,13 @@ export class StoreController {
     @Body() updateStoreDto: UpdateStoreDto,
   ) {
     return this.storeService.update(storeId, updateStoreDto, storeId);
+  }
+
+  @Patch(':id')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiOperation({ summary: 'Admin update store (publish/verify/activate)' })
+  adminUpdate(@Param('id') id: string, @Body() dto: UpdateStoreDto) {
+    return this.storeService.adminUpdate(+id, dto);
   }
 
   @Delete(':id')

@@ -4,6 +4,7 @@ import { StorePlansSeed } from './plan/plan';
 import { CategoriesSeed } from './category/category';
 import { CountrySeed } from './country/country';
 import { PaymentMethodSeed } from './payment-method/payment-method';
+import { AdminSeed } from './admin/admin';
 
 async function run() {
   console.log('🌱 Seed script started...');
@@ -23,6 +24,9 @@ async function run() {
 
     await PaymentMethodSeed(AppDataSource);
     console.log('✅ Payment methods seeded');
+
+    await AdminSeed(AppDataSource);
+    console.log('✅ Admin seeded');
 
     console.log('🎉 Seeds completed successfully!');
   } catch (error) {

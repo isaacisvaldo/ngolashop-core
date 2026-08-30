@@ -85,4 +85,16 @@ export class RoleController {
     }
     return this.roleService.remove(id);
   }
+
+  @Post(':id/apply-permissions')
+  @ApiOperation({ summary: 'Apply role permissions to all users with this role' })
+  applyPermissions(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser('rootAdmin') rootAdmin: boolean,
+  ) {
+    if (!rootAdmin) {
+      throw new ForbiddenException('Only root admin can apply role permissions');
+    }
+    return this.roleService.applyPermissions(id);
+  }
 }

@@ -11,12 +11,27 @@ import { AdminUser } from './entities/admin-user.entity';
 import { Store } from '../../store/entities/store.entity';
 import { Plan } from '../plan/entities/plan.entity';
 import { StoreSubscription } from '../../subscription/entities/subscription.entity';
+import { Role } from '../role/entities/role.entity';
+import { RolePermission } from '../role/entities/role-permission.entity';
+import { Permission } from '../permission/entities/permission.entity';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { PermissionsGuard } from './guards/permissions.guard';
 
+import { AdminGuard } from './guards/admin.guard';
+import { AdminService } from './admin.service';
+
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, AdminUser, Store, Plan, StoreSubscription]),
+    TypeOrmModule.forFeature([
+      User,
+      AdminUser,
+      Store,
+      Plan,
+      StoreSubscription,
+      Role,
+      RolePermission,
+      Permission,
+    ]),
     PassportModule,
     JwtModule.registerAsync({
       useFactory: (configService: ConfigService) => ({
@@ -27,7 +42,7 @@ import { PermissionsGuard } from './guards/permissions.guard';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, JwtAuthGuard, PermissionsGuard],
-  exports: [AuthService, JwtAuthGuard, PermissionsGuard],
+  providers: [AuthService, JwtStrategy, JwtAuthGuard, PermissionsGuard, AdminGuard, AdminService],
+  exports: [AuthService, JwtAuthGuard, PermissionsGuard, AdminGuard, AdminService],
 })
 export class AuthModule {}

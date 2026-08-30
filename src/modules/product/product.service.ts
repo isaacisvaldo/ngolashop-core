@@ -154,4 +154,13 @@ export class ProductService {
     }
     return this.imageRepo.remove(image);
   }
+
+  async adminUpdate(id: number, dto: UpdateProductDto) {
+    const product = await this.findOne(id);
+    if (dto.name) {
+      product.slug = this.slugify(dto.name);
+    }
+    Object.assign(product, dto);
+    return this.productRepo.save(product);
+  }
 }

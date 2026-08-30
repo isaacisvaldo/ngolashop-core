@@ -95,6 +95,20 @@ export class StoreService {
     return this.storeRepository.findOne({ where: { id } }) as Promise<Store>;
   }
 
+  async adminUpdate(id: number, dto: UpdateStoreDto): Promise<Store> {
+    const store = await this.storeRepository.findOne({ where: { id } });
+    if (!store) {
+      throw new NotFoundException(`Store with ID ${id} not found`);
+    }
+    if (dto.slug && dto.slug !== store.slug) {
+      const existingSlug = await this.storeRepository.findOne({ where: { slug: dto.slug } });
+      if (existingSlug) throw new ConflictException('A store with this slug already exists');
+    }
+    Object.assign(store, dto);
+    await this.storeRepository.save(store);
+    return this.storeRepository.findOne({ where: { id } }) as Promise<Store>;
+  }
+
   async remove(id: number): Promise<void> {
     const store = await this.storeRepository.findOne({ where: { id } });
     if (!store) {

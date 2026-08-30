@@ -15,9 +15,9 @@ import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { PaginationQueryDto } from '../../common/dtos/pagination-query.dto';
-import { JwtAuthGuard } from '../shared/auth/guards/jwt-auth.guard';
-import { CurrentUser } from '../shared/auth/decorators/current-user.decorator';
+import { PaginationQueryDto } from '../../../common/dtos/pagination-query.dto';
+import { JwtAuthGuard } from '../../shared/auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../../shared/auth/decorators/current-user.decorator';
 
 @ApiTags('Users')
 @Controller('user')

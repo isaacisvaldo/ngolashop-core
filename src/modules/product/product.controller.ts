@@ -17,6 +17,7 @@ import { UpdateProductDto } from './dto/update-product.dto';
 import { CreateProductImageDto } from './dto/create-product-image.dto';
 import { ProductFilterDto } from './dto/product-filter.dto';
 import { JwtAuthGuard } from '../shared/auth/guards/jwt-auth.guard';
+import { AdminGuard } from '../shared/auth/guards/admin.guard';
 import { CurrentUser } from '../shared/auth/decorators/current-user.decorator';
 
 @ApiTags('Products')
@@ -92,5 +93,15 @@ export class ProductController {
     @CurrentUser('storeId') storeId: number,
   ) {
     return this.productService.removeImage(id, imageId, storeId);
+  }
+
+  @Patch(':id/admin')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiOperation({ summary: 'Admin update product (publish/feature/activate)' })
+  adminUpdate(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateProductDto,
+  ) {
+    return this.productService.adminUpdate(id, dto);
   }
 }

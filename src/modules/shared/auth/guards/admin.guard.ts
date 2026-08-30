@@ -6,18 +6,15 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import { JwtPayload } from '../decorators/current-user.decorator';
-import { AdminUser } from '../entities/admin-user.entity';
+import { AdminService } from '../admin.service';
 import { REQUIRED_PERMISSIONS_KEY } from './constants';
 
 @Injectable()
 export class AdminGuard implements CanActivate {
   constructor(
     private reflector: Reflector,
-    @InjectRepository(AdminUser)
-    private readonly adminUserRepository: Repository<AdminUser>,
+    private adminService: AdminService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -45,9 +42,7 @@ export class AdminGuard implements CanActivate {
       return true;
     }
 
-    const adminUser = await this.adminUserRepository.findOne({
-      where: { id: user.sub },
-    });
+    const adminUser = await this.adminService.findById(user.sub);
 
     if (!adminUser || !adminUser.isActive) {
       throw new ForbiddenException('Account disabled');
