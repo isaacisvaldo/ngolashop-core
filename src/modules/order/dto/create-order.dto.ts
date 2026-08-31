@@ -29,6 +29,11 @@ export class CreateOrderDto {
   @IsNotEmpty()
   storeId!: number;
 
+  @ApiPropertyOptional({ description: 'Client ID (auto-filled if logged in)' })
+  @IsNumber()
+  @IsOptional()
+  clientId?: number;
+
   @ApiProperty({ example: 'João Silva' })
   @IsString()
   @IsNotEmpty()

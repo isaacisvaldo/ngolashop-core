@@ -14,6 +14,7 @@ import { LoginDto, UserType } from './dto/login.dto';
 import { RegisterStoreDto } from './dto/register-store.dto';
 import { User } from './entities/user.entity';
 import { AdminUser } from './entities/admin-user.entity';
+import { Client } from '../../client/entities/client.entity';
 import { Store } from '../../store/entities/store.entity';
 import { Plan } from '../plan/entities/plan.entity';
 import { StoreSubscription } from '../../subscription/entities/subscription.entity';
@@ -22,6 +23,7 @@ import { RolePermission } from '../role/entities/role-permission.entity';
 import { Permission } from '../permission/entities/permission.entity';
 import { JwtPayload } from './decorators/current-user.decorator';
 import { EmailService } from '../email/email.service';
+import { Order } from '../../order/entities/order.entity';
 
 @Injectable()
 export class AuthService {
@@ -30,6 +32,8 @@ export class AuthService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(AdminUser)
     private readonly adminUserRepository: Repository<AdminUser>,
+    @InjectRepository(Client)
+    private readonly clientRepository: Repository<Client>,
     @InjectRepository(Store)
     private readonly storeRepository: Repository<Store>,
     @InjectRepository(Plan)
@@ -42,6 +46,8 @@ export class AuthService {
     private readonly rolePermissionRepository: Repository<RolePermission>,
     @InjectRepository(Permission)
     private readonly permissionRepository: Repository<Permission>,
+    @InjectRepository(Order)
+    private readonly orderRepository: Repository<Order>,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly emailService: EmailService,
@@ -53,7 +59,84 @@ export class AuthService {
     if (userType === UserType.ADMIN) {
       return this.loginAdmin(email, password);
     }
+    if (userType === UserType.CLIENT) {
+      return this.loginClient(email, password);
+    }
     return this.loginStore(email, password);
+  }
+
+  private async loginClient(email: string, password: string) {
+    const client = await this.clientRepository.findOne({ where: { email } });
+    if (!client) throw new UnauthorizedException('Credenciais inválidas');
+    if (!client.isActive) throw new UnauthorizedException('Conta desativada');
+
+    const valid = await bcrypt.compare(password, client.password);
+    if (!valid) throw new UnauthorizedException('Credenciais inválidas');
+
+    const payload: JwtPayload = {
+      sub: client.id,
+      email: client.email,
+      type: 'client',
+    };
+
+    const accessToken = await this.generateToken(payload, 15);
+    const refreshToken = this.generateRefreshToken();
+
+    await this.clientRepository.update(client.id, { refreshToken });
+
+    return {
+      accessToken,
+      refreshToken,
+      user: {
+        id: client.id,
+        name: client.name,
+        email: client.email,
+        type: 'client' as const,
+      },
+    };
+  }
+
+  async registerClient(dto: { name: string; email: string; password: string; phone: string; province?: string; city?: string; address?: string }) {
+    const existsEmail = await this.clientRepository.findOne({ where: { email: dto.email } });
+    if (existsEmail) throw new ConflictException('Email já está em uso');
+
+    const existsPhone = await this.clientRepository.findOne({ where: { phone: dto.phone } });
+    if (existsPhone) throw new ConflictException('Telefone já está em uso');
+
+    const hashedPassword = await bcrypt.hash(dto.password, 10);
+    const client = this.clientRepository.create({
+      name: dto.name,
+      email: dto.email,
+      password: hashedPassword,
+      phone: dto.phone,
+      province: dto.province,
+      city: dto.city,
+      address: dto.address,
+    });
+
+    const saved = await this.clientRepository.save(client);
+
+    const payload: JwtPayload = {
+      sub: saved.id,
+      email: saved.email,
+      type: 'client',
+    };
+
+    const accessToken = await this.generateToken(payload, 15);
+    const refreshToken = this.generateRefreshToken();
+
+    await this.clientRepository.update(saved.id, { refreshToken });
+
+    return {
+      accessToken,
+      refreshToken,
+      user: {
+        id: saved.id,
+        name: saved.name,
+        email: saved.email,
+        type: 'client' as const,
+      },
+    };
   }
 
   private async loginAdmin(email: string, password: string) {
@@ -270,52 +353,45 @@ export class AuthService {
   }
 
   async refreshTokens(refreshToken: string) {
-    // Try store users first
-    const storeUser = await this.userRepository.findOne({
-      where: { refreshToken },
-    });
-    if (storeUser) {
-      const payload: JwtPayload = {
-        sub: storeUser.id,
-        email: storeUser.email,
-        type: 'store',
-        storeId: storeUser.storeId,
-        rootAdmin: storeUser.rootAdmin,
-      };
+    // Try client users
+    const client = await this.clientRepository.findOne({ where: { refreshToken } });
+    if (client) {
+      const payload: JwtPayload = { sub: client.id, email: client.email, type: 'client' };
       const accessToken = await this.generateToken(payload, 15);
       const newRefreshToken = this.generateRefreshToken();
-      await this.userRepository.update(storeUser.id, {
-        refreshToken: newRefreshToken,
-      });
+      await this.clientRepository.update(client.id, { refreshToken: newRefreshToken });
+      return { accessToken, refreshToken: newRefreshToken };
+    }
+
+    // Try store users
+    const storeUser = await this.userRepository.findOne({ where: { refreshToken } });
+    if (storeUser) {
+      const payload: JwtPayload = { sub: storeUser.id, email: storeUser.email, type: 'store', storeId: storeUser.storeId, rootAdmin: storeUser.rootAdmin };
+      const accessToken = await this.generateToken(payload, 15);
+      const newRefreshToken = this.generateRefreshToken();
+      await this.userRepository.update(storeUser.id, { refreshToken: newRefreshToken });
       return { accessToken, refreshToken: newRefreshToken };
     }
 
     // Try admin users
-    const adminUser = await this.adminUserRepository.findOne({
-      where: { refreshToken },
-    });
+    const adminUser = await this.adminUserRepository.findOne({ where: { refreshToken } });
     if (adminUser) {
-      const payload: JwtPayload = {
-        sub: adminUser.id,
-        email: adminUser.email,
-        type: 'admin',
-        rootAdmin: adminUser.isRoot,
-        roleId: adminUser.roleId,
-      };
+      const payload: JwtPayload = { sub: adminUser.id, email: adminUser.email, type: 'admin', rootAdmin: adminUser.isRoot, roleId: adminUser.roleId };
       const accessToken = await this.generateToken(payload, 15);
       const newRefreshToken = this.generateRefreshToken();
-      await this.adminUserRepository.update(adminUser.id, {
-        refreshToken: newRefreshToken,
-      });
+      await this.adminUserRepository.update(adminUser.id, { refreshToken: newRefreshToken });
       return { accessToken, refreshToken: newRefreshToken };
     }
 
     throw new UnauthorizedException('Invalid refresh token');
   }
 
-  async getMe(userId: number, userType: 'admin' | 'store') {
+  async getMe(userId: number, userType: 'admin' | 'store' | 'client') {
     if (userType === 'admin') {
       return this.getAdminMe(userId);
+    }
+    if (userType === 'client') {
+      return this.getClientMe(userId);
     }
     return this.getStoreMe(userId);
   }
@@ -387,16 +463,77 @@ export class AuthService {
     };
   }
 
-  async logout(userId: number, userType: 'admin' | 'store') {
+  private async getClientMe(userId: number) {
+    const client = await this.clientRepository.findOne({ where: { id: userId } });
+    if (!client) throw new UnauthorizedException('User not found');
+
+    return {
+      id: client.id,
+      name: client.name,
+      email: client.email,
+      phone: client.phone,
+      province: client.province,
+      city: client.city,
+      address: client.address,
+      avatarUrl: client.avatarUrl,
+      isActive: client.isActive,
+      createdAt: client.createdAt,
+      type: 'client' as const,
+    };
+  }
+
+  async getClientStats(userId: number) {
+    const client = await this.clientRepository.findOne({ where: { id: userId } });
+    if (!client) throw new UnauthorizedException('User not found');
+
+    const orders = await this.orderRepository.find({
+      where: { clientId: userId },
+      order: { createdAt: 'DESC' },
+    });
+
+    const totalOrders = orders.length;
+    const totalSpent = orders.reduce((sum, o) => sum + Number(o.total), 0);
+    const pendingOrders = orders.filter((o) => o.status === 'pending').length;
+    const deliveredOrders = orders.filter((o) => o.status === 'delivered').length;
+    const cancelledOrders = orders.filter((o) => o.status === 'cancelled').length;
+
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthOrders = orders.filter((o) => new Date(o.createdAt) >= startOfMonth);
+    const monthSpent = monthOrders.reduce((sum, o) => sum + Number(o.total), 0);
+
+    const recentOrders = orders.slice(0, 5).map((o) => ({
+      id: o.id,
+      total: Number(o.total),
+      status: o.status,
+      trackingCode: o.trackingCode,
+      createdAt: o.createdAt,
+    }));
+
+    return {
+      totalOrders,
+      totalSpent,
+      pendingOrders,
+      deliveredOrders,
+      cancelledOrders,
+      monthOrders: monthOrders.length,
+      monthSpent,
+      recentOrders,
+    };
+  }
+
+  async logout(userId: number, userType: 'admin' | 'store' | 'client') {
     if (userType === 'admin') {
       await this.adminUserRepository.update(userId, { refreshToken: null });
+    } else if (userType === 'client') {
+      await this.clientRepository.update(userId, { refreshToken: null });
     } else {
       await this.userRepository.update(userId, { refreshToken: null });
     }
     return { message: 'Logged out successfully' };
   }
 
-  async updateMe(userId: number, userType: 'admin' | 'store', data: { name?: string; phone?: string }) {
+  async updateMe(userId: number, userType: 'admin' | 'store' | 'client', data: { name?: string; phone?: string }) {
     if (userType === 'admin') {
       const user = await this.adminUserRepository.findOne({ where: { id: userId } });
       if (!user) throw new UnauthorizedException('User not found');
@@ -404,6 +541,14 @@ export class AuthService {
       if (data.phone !== undefined) user.phone = data.phone;
       await this.adminUserRepository.save(user);
       return this.getAdminMe(userId);
+    }
+    if (userType === 'client') {
+      const client = await this.clientRepository.findOne({ where: { id: userId } });
+      if (!client) throw new UnauthorizedException('User not found');
+      if (data.name !== undefined) client.name = data.name;
+      if (data.phone !== undefined) client.phone = data.phone;
+      await this.clientRepository.save(client);
+      return this.getClientMe(userId);
     }
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) throw new UnauthorizedException('User not found');
@@ -413,7 +558,7 @@ export class AuthService {
     return this.getStoreMe(userId);
   }
 
-  async changePassword(userId: number, userType: 'admin' | 'store', currentPassword: string, newPassword: string) {
+  async changePassword(userId: number, userType: 'admin' | 'store' | 'client', currentPassword: string, newPassword: string) {
     if (userType === 'admin') {
       const user = await this.adminUserRepository.findOne({ where: { id: userId } });
       if (!user) throw new UnauthorizedException('User not found');
@@ -421,6 +566,15 @@ export class AuthService {
       if (!valid) throw new BadRequestException('Palavra-passe atual incorreta');
       user.password = await bcrypt.hash(newPassword, 10);
       await this.adminUserRepository.save(user);
+      return { message: 'Palavra-passe alterada com sucesso' };
+    }
+    if (userType === 'client') {
+      const client = await this.clientRepository.findOne({ where: { id: userId } });
+      if (!client) throw new UnauthorizedException('User not found');
+      const valid = await bcrypt.compare(currentPassword, client.password);
+      if (!valid) throw new BadRequestException('Palavra-passe atual incorreta');
+      client.password = await bcrypt.hash(newPassword, 10);
+      await this.clientRepository.save(client);
       return { message: 'Palavra-passe alterada com sucesso' };
     }
     const user = await this.userRepository.findOne({ where: { id: userId } });

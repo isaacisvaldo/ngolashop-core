@@ -4,7 +4,7 @@ import { Request } from 'express';
 export interface JwtPayload {
   sub: number;
   email: string;
-  type: 'admin' | 'store';
+  type: 'admin' | 'store' | 'client';
   storeId?: number | null;
   rootAdmin?: boolean;
   roleId?: number | null;

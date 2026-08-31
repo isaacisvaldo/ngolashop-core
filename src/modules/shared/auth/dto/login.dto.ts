@@ -4,6 +4,7 @@ import { ApiProperty } from '@nestjs/swagger';
 export enum UserType {
   ADMIN = 'admin',
   STORE = 'store',
+  CLIENT = 'client',
 }
 
 export class LoginDto {

@@ -19,6 +19,7 @@ import { UploadModule } from './modules/shared/upload/upload.module';
 import { StatsModule } from './modules/stats/stats.module';
 import { AdminUserModule } from './modules/admin-user/admin-user.module';
 import { PermissionModule } from './modules/permission/permission.module';
+import { ClientModule } from './modules/client/client.module';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { PermissionModule } from './modules/permission/permission.module';
     StatsModule,
     AdminUserModule,
     PermissionModule,
+    ClientModule,
   ],
   controllers: [],
   providers: [],

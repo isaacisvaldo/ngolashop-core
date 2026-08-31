@@ -4,6 +4,7 @@ import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { RegisterStoreDto } from './dto/register-store.dto';
+import { RegisterClientDto } from '../../client/dto/register-client.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser, type JwtPayload } from './decorators/current-user.decorator';
 
@@ -14,7 +15,7 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Login (admin or store)' })
+  @ApiOperation({ summary: 'Login (admin, store or client)' })
   @ApiResponse({ status: 200, description: 'Login successful' })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
   login(@Body() dto: LoginDto) {
@@ -58,6 +59,15 @@ export class AuthController {
     return this.authService.logout(user.sub, user.type);
   }
 
+  @Get('client-stats')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get client order statistics' })
+  @ApiResponse({ status: 200, description: 'Client stats' })
+  clientStats(@CurrentUser() user: JwtPayload) {
+    return this.authService.getClientStats(user.sub);
+  }
+
   @Post('register/store')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Register a new store with root user' })
@@ -65,6 +75,15 @@ export class AuthController {
   @ApiResponse({ status: 409, description: 'Email already in use' })
   registerStore(@Body() dto: RegisterStoreDto) {
     return this.authService.registerStore(dto);
+  }
+
+  @Post('register/client')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Register a new client' })
+  @ApiResponse({ status: 201, description: 'Client registered' })
+  @ApiResponse({ status: 409, description: 'Email or phone already in use' })
+  registerClient(@Body() dto: RegisterClientDto) {
+    return this.authService.registerClient(dto);
   }
 
   @Post('refresh')

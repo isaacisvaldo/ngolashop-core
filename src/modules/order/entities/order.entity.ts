@@ -10,6 +10,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { Store } from '../../store/entities/store.entity';
+import { Client } from '../../client/entities/client.entity';
 import { OrderItem } from './order-item.entity';
 import { OrderStatusHistory } from './order-status-history.entity';
 import { Payment } from './payment.entity';
@@ -24,6 +25,13 @@ export class Order {
   @ManyToOne(() => Store, (store) => store.orders)
   @JoinColumn({ name: 'store_id' })
   store!: Store;
+
+  @Column({ name: 'client_id', type: 'int', nullable: true })
+  clientId!: number | null;
+
+  @ManyToOne(() => Client, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'client_id' })
+  client!: Client | null;
 
   @Column({
     name: 'customer_name',

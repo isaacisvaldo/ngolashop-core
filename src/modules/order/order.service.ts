@@ -66,6 +66,7 @@ export class OrderService {
 
     const order = this.orderRepository.create({
       storeId,
+      clientId: dto.clientId ?? null,
       customerName: dto.customerName,
       customerEmail: dto.customerEmail,
       customerPhone: dto.customerPhone,
