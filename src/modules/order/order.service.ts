@@ -106,7 +106,7 @@ export class OrderService {
     const qb = this.orderRepository
       .createQueryBuilder('order')
       .leftJoinAndSelect('order.items', 'items')
-      .where('order.storeId = :storeId', { storeId })
+      .where('order.store_id = :storeId', { storeId })
       .orderBy('order.createdAt', 'DESC');
 
     if (search) {
@@ -180,14 +180,14 @@ export class OrderService {
       .createQueryBuilder('order')
       .select('order.status', 'status')
       .addSelect('COUNT(*)', 'count')
-      .where('order.storeId = :storeId', { storeId })
+      .where('order.store_id = :storeId', { storeId })
       .groupBy('order.status')
       .getRawMany<{ status: string; count: string }>();
 
     const totalRevenue = await this.orderRepository
       .createQueryBuilder('order')
       .select('COALESCE(SUM(order.total), 0)', 'total')
-      .where('order.storeId = :storeId', { storeId })
+      .where('order.store_id = :storeId', { storeId })
       .andWhere('order.status != :cancelled', { cancelled: 'cancelled' })
       .getRawOne<{ total: string }>();
 
