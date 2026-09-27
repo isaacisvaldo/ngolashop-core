@@ -76,7 +76,7 @@ export class HighlightService implements OnModuleInit, OnModuleDestroy {
     return k.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ');
   }
 
-  /** Identifica o "conjunto" de vagas: a mesma categoria, a mesma palavra-chave ou o carrossel global. */
+  /** Identifica o "conjunto" de vagas: a mesma categoria, a mesma palavra-chave ou a faixa de destaque global. */
   private poolWhere(format: HighlightFormat, target: { categoryId?: number | null; keyword?: string | null }) {
     const base = { format: format.key, status: 'booked' as const };
     if (format.target === 'category') return { ...base, categoryId: target.categoryId ?? -1 };
@@ -139,11 +139,33 @@ export class HighlightService implements OnModuleInit, OnModuleDestroy {
     return { balance, included, credits, formats, packages, wallet: history };
   }
 
+  /**
+   * Um produto (ou a loja, no formato «lojas recomendadas») só pode ter um destaque de cada formato
+   * a decorrer ou agendado — comprar outro igual só ocupava vagas e gastava saldo.
+   */
+  private async assertNotDuplicate(format: HighlightFormat, storeId: number, productId: number | null, manager?: EntityManager) {
+    const repo = manager ? manager.getRepository(Highlight) : this.highlightRepository;
+    const qb = repo
+      .createQueryBuilder('h')
+      .where(`h.status = 'booked' AND h.format = :format AND h.ends_at > :now`, { format: format.key, now: new Date() })
+      .orderBy('h.ends_at', 'DESC');
+    if (productId) qb.andWhere('h.product_id = :productId', { productId });
+    else qb.andWhere('h.store_id = :storeId AND h.product_id IS NULL', { storeId });
+    const existing = await qb.getOne();
+    if (existing) {
+      const ate = existing.endsAt.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      throw new BadRequestException(
+        `${productId ? 'Este produto' : 'A sua loja'} já está em destaque em «${format.name}» até ${ate}. Pode destacá-lo de novo quando esse terminar.`,
+      );
+    }
+  }
+
   async quote(storeId: number, input: { format: HighlightFormatKey; days: number; categoryId?: number | undefined; keyword?: string | undefined; productId?: number | undefined }) {
     const format = await this.format(input.format);
     const price = format.prices[String(input.days)];
     if (price === undefined) throw new BadRequestException('Duração indisponível para este formato');
     const target = await this.resolveTarget(storeId, format, input);
+    if (input.productId || format.target === 'store') await this.assertNotDuplicate(format, storeId, format.target === 'store' ? null : input.productId ?? null);
     const start = await this.nextAvailableStart(format, target, input.days);
     return {
       format: format.key,
@@ -226,6 +248,9 @@ export class HighlightService implements OnModuleInit, OnModuleDestroy {
     return this.highlightRepository.manager.transaction(async (m) => {
       // Bloqueio por conjunto de vagas: impede que duas compras simultâneas ocupem a mesma última vaga
       await m.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`hl:${format.key}:${target.categoryId ?? ''}:${target.keyword ?? ''}`]);
+      // Também por produto/loja: dois pedidos seguidos para o mesmo produto não passam os dois
+      await m.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`hl-dup:${format.key}:${productId ?? `s${storeId}`}`]);
+      await this.assertNotDuplicate(format, storeId, productId, m);
       const start = await this.nextAvailableStart(format, target, input.days, m);
       const highlight = await m.getRepository(Highlight).save(
         m.getRepository(Highlight).create({
@@ -584,6 +609,39 @@ export class HighlightService implements OnModuleInit, OnModuleDestroy {
       [now],
     )) as { format: string; categoryId: number | null; keyword: string | null; n: string }[];
     return rows.map((r) => ({ ...r, n: Number(r.n) }));
+  }
+
+  /** Destaques a decorrer ou agendados, por produto — para a lista de produtos do admin. */
+  async activeByProduct() {
+    const rows = await this.highlightRepository
+      .createQueryBuilder('h')
+      .where(`h.status = 'booked' AND h.ends_at > :now AND h.product_id IS NOT NULL`, { now: new Date() })
+      .orderBy('h.starts_at', 'ASC')
+      .getMany();
+    const all = await this.formats(true);
+    const formats = new Map(all.map((f) => [f.key, f.name]));
+    const highlights = rows.map((h) => ({
+      id: h.id,
+      productId: h.productId!,
+      format: h.format,
+      formatName: formats.get(h.format) ?? h.format,
+      startsAt: h.startsAt,
+      endsAt: h.endsAt,
+      paidWith: h.paidWith,
+      state: this.state(h),
+    }));
+    // Formatos de produto (o «lojas recomendadas» destaca a loja, não um produto)
+    const productFormats = all
+      .filter((f) => f.isActive && f.target !== 'store')
+      .map((f) => ({ key: f.key, name: f.name, days: Object.keys(f.prices).map(Number).sort((a, b) => a - b) }));
+    return { highlights, formats: productFormats };
+  }
+
+  /** A equipa destaca um produto de graça: entra nas mesmas vagas, com prazo, e aparece no mesmo sítio que os pagos. */
+  async adminHighlightProduct(adminId: number, productId: number, format: HighlightFormatKey, days: number) {
+    const product = await this.productRepository.findOne({ where: { id: productId }, select: { id: true, storeId: true } });
+    if (!product) throw new NotFoundException('Produto não encontrado');
+    return this.book(product.storeId, adminId, { format, days, productId, payWith: 'wallet' }, true);
   }
 
   async adminCancel(id: number) {

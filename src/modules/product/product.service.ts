@@ -38,6 +38,9 @@ export class ProductService {
     const slug = this.slugify(createProductDto.name);
     const product = this.productRepo.create({
       ...createProductDto,
+      stockQuantity: createProductDto.stockQuantity ?? 0,
+      isFeatured: createProductDto.isFeatured ?? false,
+      isPublished: createProductDto.isPublished ?? false,
       store: { id: storeId },
       slug,
     });
@@ -83,10 +86,14 @@ export class ProductService {
     };
     const [data, total] = await qb
       .orderBy(...order[sort])
-      .addOrderBy('images.position', 'ASC')
+      // Desempate estável: sem ele, produtos com a mesma data/preço podiam repetir-se ou faltar entre páginas
+      .addOrderBy('product.id', 'DESC')
+      // (Não ordenar por images.position aqui: com skip/take o TypeORM contava uma linha por imagem
+      //  e a página 2 repetia produtos com várias fotos. As imagens são ordenadas abaixo.)
       .skip((page - 1) * limit)
       .take(limit)
       .getManyAndCount();
+    for (const p of data) p.images?.sort((a, b) => a.position - b.position);
 
     const counts = data.length
       ? await this.productRepo.manager.query(

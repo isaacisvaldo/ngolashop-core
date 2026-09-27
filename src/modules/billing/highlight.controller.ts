@@ -138,6 +138,27 @@ export class HighlightAdminController {
     return this.highlights.adminCancel(id);
   }
 
+  @Get('products')
+  @RequiredPermissions('product.read')
+  @ApiOperation({ summary: 'Destaques a decorrer ou agendados, por produto' })
+  activeByProduct() {
+    return this.highlights.activeByProduct();
+  }
+
+  @Post('products/:productId')
+  @RequiredPermissions('product.write')
+  @ApiOperation({ summary: 'Destacar um produto (grátis, com prazo, nas vagas normais)' })
+  highlightProduct(@CurrentUser() user: JwtPayload, @Param('productId', ParseIntPipe) productId: number, @Body() dto: GrantHighlightCreditDto) {
+    return this.highlights.adminHighlightProduct(user.sub, productId, dto.format, dto.days);
+  }
+
+  @Post('products/highlight/:id/cancel')
+  @RequiredPermissions('product.write')
+  @ApiOperation({ summary: 'Remover o destaque de um produto' })
+  removeProductHighlight(@Param('id', ParseIntPipe) id: number) {
+    return this.highlights.adminCancel(id);
+  }
+
   @Post('stores/:storeId/credit')
   @RequiredPermissions('finance.write')
   @ApiOperation({ summary: 'Oferecer um destaque grátis a uma loja' })

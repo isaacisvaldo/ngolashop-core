@@ -30,9 +30,11 @@ export class CreateProductDto {
   @IsNumber()
   compareAtPrice?: number;
 
-  @ApiProperty({ example: 50 })
+  // Sem valor por defeito: o PartialType do DTO de atualização herdaria o 0 e apagaria o stock
+  @ApiPropertyOptional({ example: 50, description: 'Por defeito 0 na criação' })
+  @IsOptional()
   @IsNumber()
-  stockQuantity: number = 0;
+  stockQuantity?: number;
 
   @ApiPropertyOptional({ example: 'NIKE-TSHIRT-BLK-001' })
   @IsOptional()
@@ -45,11 +47,13 @@ export class CreateProductDto {
   @IsNumber()
   categoryId?: number;
 
-  @ApiProperty({ example: false })
+  @ApiPropertyOptional({ example: false })
+  @IsOptional()
   @IsBoolean()
-  isFeatured: boolean = false;
+  isFeatured?: boolean;
 
-  @ApiProperty({ example: false })
+  @ApiPropertyOptional({ example: false })
+  @IsOptional()
   @IsBoolean()
-  isPublished: boolean = false;
+  isPublished?: boolean;
 }

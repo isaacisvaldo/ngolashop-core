@@ -17,7 +17,7 @@ export class HighlightFormat {
   @Column({ name: 'description', type: 'text', nullable: true })
   description!: string | null;
 
-  /** category (por categoria) | keyword (por palavra-chave) | global (carrossel) | store (lojas recomendadas) */
+  /** category (por categoria) | keyword (por palavra-chave) | global (faixa de destaque da página inicial) | store (lojas recomendadas) */
   @Column({ name: 'target', type: 'varchar', length: 20 })
   target!: HighlightTarget;
 
