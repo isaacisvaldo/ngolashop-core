@@ -16,6 +16,8 @@ import { User } from '../shared/auth/entities/user.entity';
 import { StoreSubscription } from '../subscription/entities/subscription.entity';
 import { SubscriptionInvoice, type BillingCycle, type PaymentMethod } from './entities/subscription-invoice.entity';
 import { SettingService } from '../setting/setting.service';
+import { WalletService } from './wallet.service';
+import { WalletPackage } from './entities/highlight.entity';
 import { EmailService } from '../shared/email/email.service';
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -51,6 +53,8 @@ export class BillingService implements OnModuleInit, OnModuleDestroy {
     @InjectRepository(SubscriptionInvoice) private readonly invoiceRepository: Repository<SubscriptionInvoice>,
     private readonly settings: SettingService,
     private readonly email: EmailService,
+    private readonly wallet: WalletService,
+    @InjectRepository(WalletPackage) private readonly packageRepository: Repository<WalletPackage>,
   ) {}
 
   /* ------------------------------------------------------------------ */
@@ -182,11 +186,9 @@ export class BillingService implements OnModuleInit, OnModuleDestroy {
       this.productRepository.count({ where: { storeId } }),
       this.productRepository.count({ where: { storeId, hiddenByPlan: false } }),
       this.userRepository.count({ where: { storeId } }),
-      this.invoiceRepository.findOne({
-        where: { storeId, status: In(['pending', 'awaiting_validation']) },
-        relations: { plan: true },
-        order: { createdAt: 'DESC' },
-      }),
+      this.invoiceRepository
+        .findOne({ where: { storeId, kind: 'subscription' }, relations: { plan: true }, order: { createdAt: 'DESC' } })
+        .then((last) => (last && ['pending', 'awaiting_validation', 'rejected'].includes(last.status) ? last : null)),
       this.founderInfo(),
     ]);
     const hadTrial = await this.subscriptionRepository.exists({ where: { storeId, source: 'trial' } });
@@ -406,8 +408,43 @@ export class BillingService implements OnModuleInit, OnModuleDestroy {
     return `KS${String(id).padStart(7, '0')}`;
   }
 
+  /** Carregamento da carteira de destaques (pacote com bónus), pago e validado como uma fatura. */
+  async createTopupInvoice(storeId: number, userId: number, packageId: number, method: PaymentMethod) {
+    const pack = await this.packageRepository.findOne({ where: { id: packageId, isActive: true } });
+    if (!pack) throw new NotFoundException('Pacote não encontrado');
+    const open = await this.invoiceRepository.findOne({ where: { storeId, kind: 'wallet_topup', status: In(['pending', 'awaiting_validation']) } });
+    if (open?.status === 'awaiting_validation') {
+      throw new BadRequestException('Já tem um carregamento em validação. Aguarde a confirmação.');
+    }
+    if (open) {
+      open.status = 'cancelled';
+      await this.invoiceRepository.save(open);
+    }
+    const invoice = await this.invoiceRepository.save(
+      this.invoiceRepository.create({
+        storeId,
+        kind: 'wallet_topup',
+        planId: null,
+        cycle: null,
+        periodDays: null,
+        baseAmount: Number(pack.payAmount),
+        discountPercent: 0,
+        amount: Number(pack.payAmount),
+        creditAmount: Number(pack.creditAmount),
+        status: 'pending',
+        paymentMethod: method,
+        createdBy: userId,
+      }),
+    );
+    return this.findInvoice(invoice.id, storeId);
+  }
+
+  listPackages() {
+    return this.packageRepository.find({ where: { isActive: true }, order: { payAmount: 'ASC' } });
+  }
+
   async createInvoice(storeId: number, userId: number, planId: number, cycle: BillingCycle, method: PaymentMethod) {
-    const open = await this.invoiceRepository.findOne({ where: { storeId, status: In(['pending', 'awaiting_validation']) } });
+    const open = await this.invoiceRepository.findOne({ where: { storeId, kind: 'subscription', status: In(['pending', 'awaiting_validation']) } });
     if (open?.status === 'awaiting_validation') {
       throw new BadRequestException('Já tem um pagamento em validação. Aguarde a confirmação da equipa Kamba Shop.');
     }
@@ -488,6 +525,23 @@ export class BillingService implements OnModuleInit, OnModuleDestroy {
       throw new BadRequestException('Esta fatura já foi processada');
     }
 
+    if (invoice.kind === 'wallet_topup') {
+      await this.wallet.moveNow(invoice.storeId, Number(invoice.creditAmount ?? invoice.amount), 'topup', {
+        invoiceId: invoice.id,
+        notes: `Carregamento ${this.invoiceReference(invoice.id)}`,
+      });
+      invoice.status = 'paid';
+      invoice.reviewedBy = adminId;
+      invoice.reviewedAt = new Date();
+      invoice.rejectionReason = null;
+      await this.invoiceRepository.save(invoice);
+      void this.notify(invoice.storeId, 'Saldo de destaques carregado — Kamba Shop', `
+        <p>O pagamento <strong>${this.invoiceReference(invoice.id)}</strong> foi confirmado.</p>
+        <p>Foram adicionados <strong>${Number(invoice.creditAmount ?? invoice.amount).toLocaleString('pt-PT')} Kz</strong> à carteira de destaques da sua loja.</p>`);
+      return this.findInvoice(id);
+    }
+    if (!invoice.plan || !invoice.periodDays || !invoice.cycle) throw new BadRequestException('Fatura sem plano');
+
     const sub = await this.activatePeriod(invoice.storeId, invoice.plan, invoice.periodDays, {
       source: 'payment',
       cycle: invoice.cycle,
@@ -508,7 +562,7 @@ export class BillingService implements OnModuleInit, OnModuleDestroy {
     await this.syncStore(invoice.storeId);
     void this.notify(invoice.storeId, 'Pagamento confirmado — Kamba Shop', `
       <p>O pagamento da fatura <strong>${this.invoiceReference(invoice.id)}</strong> foi confirmado.</p>
-      <p>O plano <strong>${invoice.plan.name}</strong> (${CYCLE_LABEL[invoice.cycle]}) está ativo até <strong>${sub.endDate?.toLocaleDateString('pt-AO')}</strong>.</p>`);
+      <p>O plano <strong>${invoice.plan.name}</strong> (${CYCLE_LABEL[invoice.cycle!]}) está ativo até <strong>${sub.endDate?.toLocaleDateString('pt-AO')}</strong>.</p>`);
     return this.findInvoice(id);
   }
 
@@ -667,6 +721,21 @@ export class BillingService implements OnModuleInit, OnModuleDestroy {
     return rows;
   }
 
+  /** KPI 3 (calculado aqui para evitar dependência circular com HighlightService). */
+  private async highlightRepurchase() {
+    const rows = (await this.subscriptionRepository.manager.query(
+      `WITH firsts AS (SELECT store_id, MIN(created_at) AS first_at, MIN(ends_at) AS first_end
+                         FROM tb_highlights WHERE paid_with = 'wallet' AND status = 'booked' GROUP BY store_id)
+       SELECT COUNT(*) FILTER (WHERE f.first_end < NOW()) AS base,
+              COUNT(*) FILTER (WHERE f.first_end < NOW() AND EXISTS (SELECT 1 FROM tb_highlights h
+                WHERE h.store_id = f.store_id AND h.paid_with = 'wallet' AND h.status = 'booked' AND h.created_at > f.first_at)) AS repeat
+         FROM firsts f`,
+    )) as { base: string; repeat: string }[];
+    const base = Number(rows[0]?.base ?? 0);
+    const repeat = Number(rows[0]?.repeat ?? 0);
+    return { base, repeat, rate: base > 0 ? Number(((repeat / base) * 100).toFixed(1)) : null };
+  }
+
   async metrics() {
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -752,7 +821,7 @@ export class BillingService implements OnModuleInit, OnModuleDestroy {
           thisMonth: await churnFor(monthStart, now),
           target: 8,
         },
-        highlightRepurchase: { rate: null as number | null, target: 30 },
+        highlightRepurchase: { ...(await this.highlightRepurchase()), target: 30 },
       },
     };
   }

@@ -149,3 +149,136 @@ export class ValidateCouponDto {
   @Min(0)
   subtotal!: number;
 }
+
+export class BookHighlightDto {
+  @ApiProperty({ enum: ['category_top', 'search_top', 'home_carousel', 'store_featured'] })
+  @IsIn(['category_top', 'search_top', 'home_carousel', 'store_featured'])
+  format!: 'category_top' | 'search_top' | 'home_carousel' | 'store_featured';
+
+  @ApiProperty({ enum: [3, 7, 15] })
+  @IsIn([3, 7, 15])
+  days!: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  productId?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  categoryId?: number;
+
+  @ApiPropertyOptional({ example: 'sapatilhas' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  keyword?: string;
+
+  @ApiProperty({ enum: ['wallet', 'included', 'credit'] })
+  @IsIn(['wallet', 'included', 'credit'])
+  payWith!: 'wallet' | 'included' | 'credit';
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  creditId?: number;
+}
+
+export class HighlightQuoteDto {
+  @ApiProperty()
+  @IsIn(['category_top', 'search_top', 'home_carousel', 'store_featured'])
+  format!: 'category_top' | 'search_top' | 'home_carousel' | 'store_featured';
+
+  @ApiProperty()
+  @Type(() => Number)
+  @IsIn([3, 7, 15])
+  days!: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  productId?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  categoryId?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  keyword?: string;
+}
+
+export class PlacementsQueryDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  categoryId?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  search?: string;
+}
+
+export class TopupDto {
+  @ApiProperty()
+  @IsInt()
+  packageId!: number;
+
+  @ApiProperty({ enum: ['multicaixa_express', 'reference', 'transfer'] })
+  @IsIn(['multicaixa_express', 'reference', 'transfer'])
+  paymentMethod!: 'multicaixa_express' | 'reference' | 'transfer';
+}
+
+export class UpdateHighlightFormatDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  description?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(50)
+  slots?: number;
+
+  @IsOptional()
+  prices?: Record<string, number>;
+
+  @IsOptional()
+  isActive?: boolean;
+}
+
+export class WalletPackageDto {
+  @IsNumber()
+  @Min(1)
+  payAmount!: number;
+
+  @IsNumber()
+  @Min(1)
+  creditAmount!: number;
+
+  @IsOptional()
+  isActive?: boolean;
+}
+
+export class GrantHighlightCreditDto {
+  @IsIn(['category_top', 'search_top', 'home_carousel', 'store_featured'])
+  format!: 'category_top' | 'search_top' | 'home_carousel' | 'store_featured';
+
+  @IsIn([3, 7, 15])
+  days!: number;
+}

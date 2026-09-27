@@ -18,18 +18,26 @@ export class SubscriptionInvoice {
   @JoinColumn({ name: 'store_id' })
   store!: Store;
 
-  @Column({ name: 'plan_id', type: 'integer' })
-  planId!: number;
+  /** subscription | wallet_topup */
+  @Column({ name: 'kind', type: 'varchar', length: 20, default: 'subscription' })
+  kind!: 'subscription' | 'wallet_topup';
 
-  @ManyToOne(() => Plan)
+  /** Saldo creditado na carteira de destaques (apenas wallet_topup). */
+  @Column({ name: 'credit_amount', type: 'decimal', precision: 12, scale: 2, nullable: true })
+  creditAmount!: number | null;
+
+  @Column({ name: 'plan_id', type: 'integer', nullable: true })
+  planId!: number | null;
+
+  @ManyToOne(() => Plan, { nullable: true })
   @JoinColumn({ name: 'plan_id' })
-  plan!: Plan;
+  plan!: Plan | null;
 
-  @Column({ name: 'cycle', type: 'varchar', length: 20 })
-  cycle!: BillingCycle;
+  @Column({ name: 'cycle', type: 'varchar', length: 20, nullable: true })
+  cycle!: BillingCycle | null;
 
-  @Column({ name: 'period_days', type: 'integer' })
-  periodDays!: number;
+  @Column({ name: 'period_days', type: 'integer', nullable: true })
+  periodDays!: number | null;
 
   @Column({ name: 'base_amount', type: 'decimal', precision: 12, scale: 2 })
   baseAmount!: number;
