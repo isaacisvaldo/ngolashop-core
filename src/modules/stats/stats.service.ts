@@ -193,6 +193,36 @@ export class StatsService {
     };
   }
 
+  async exportOrdersCsv(storeId: number) {
+    const orders = await this.orderRepository.find({
+      where: { storeId },
+      relations: { items: true },
+      order: { createdAt: 'DESC' },
+    });
+    const esc = (v: unknown) => {
+      const t = v === null || v === undefined ? '' : String(v);
+      return /[",;\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
+    };
+    const header = ['Referencia', 'Data', 'Estado', 'Cliente', 'Telefone', 'Provincia', 'Itens', 'Subtotal', 'Desconto', 'Entrega', 'Total', 'Pagamento'];
+    const lines = orders.map((o) =>
+      [
+        `NG-${String(o.id).padStart(5, '0')}`,
+        o.createdAt.toISOString(),
+        o.status,
+        o.customerName,
+        o.customerPhone,
+        o.customerProvince,
+        o.items.map((i) => `${i.quantity}x ${i.productName}`).join(' | '),
+        o.subtotal,
+        o.discountAmount,
+        o.shippingCost,
+        o.total,
+        o.paymentMethod,
+      ].map(esc).join(';'),
+    );
+    return [header.join(';'), ...lines].join('\n');
+  }
+
   private buildLocationData(orders: Order[]) {
     const locationMap = new Map<string, {
       province: string;

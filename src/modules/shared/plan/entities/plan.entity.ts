@@ -109,6 +109,26 @@ export class Plan {
   })
   hasPrioritySupport!: boolean;
 
+  @Column({ name: 'slug', type: 'varchar', length: 40, nullable: true })
+  slug!: string | null;
+
+  @Column({ name: 'limit_highlights_per_month', type: 'integer', nullable: false, default: 0 })
+  limitHighlightsPerMonth!: number;
+
+  @Column({ name: 'allows_coupons', type: 'boolean', nullable: false, default: false })
+  allowsCoupons!: boolean;
+
+  @Column({ name: 'allows_remove_branding', type: 'boolean', nullable: false, default: false })
+  allowsRemoveBranding!: boolean;
+
+  /** basic | sales | advanced | advanced_export */
+  @Column({ name: 'statistics_level', type: 'varchar', length: 20, nullable: false, default: 'basic' })
+  statisticsLevel!: 'basic' | 'sales' | 'advanced' | 'advanced_export';
+
+  /** email | whatsapp | dedicated */
+  @Column({ name: 'support_level', type: 'varchar', length: 20, nullable: false, default: 'email' })
+  supportLevel!: 'email' | 'whatsapp' | 'dedicated';
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamp', nullable: false })
   createdAt!: Date;
 

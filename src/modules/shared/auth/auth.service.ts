@@ -23,6 +23,8 @@ import { RolePermission } from '../role/entities/role-permission.entity';
 import { Permission } from '../permission/entities/permission.entity';
 import { JwtPayload } from './decorators/current-user.decorator';
 import { EmailService } from '../email/email.service';
+import { AdminService } from './admin.service';
+import { BillingService } from '../../billing/billing.service';
 import { Order } from '../../order/entities/order.entity';
 
 @Injectable()
@@ -51,6 +53,8 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly emailService: EmailService,
+    private readonly adminService: AdminService,
+    private readonly billingService: BillingService,
   ) {}
 
   async login(dto: LoginDto) {
@@ -206,15 +210,7 @@ export class AuthService {
 
     await this.userRepository.update(user.id, { refreshToken });
 
-    // Get active subscription
-    const now = new Date();
-    const subscription = await this.subscriptionRepository.findOne({
-      where: { store: { id: user.storeId! }, status: 'active' },
-      relations: { plan: true },
-      order: { createdAt: 'DESC' },
-    });
-
-    const isExpired = subscription?.endDate && subscription.endDate < now;
+    const eff = await this.billingService.getEffectivePlan(user.storeId!);
 
     return {
       accessToken,
@@ -227,16 +223,12 @@ export class AuthService {
         storeId: user.storeId,
         rootAdmin: user.rootAdmin,
       },
-      subscription:
-        subscription && !isExpired
-          ? {
-              id: subscription.id,
-              plan: subscription.plan,
-              startDate: subscription.startDate,
-              endDate: subscription.endDate,
-              status: subscription.status,
-            }
-          : null,
+      subscription: {
+        plan: this.billingService.publicPlan(eff.plan),
+        state: eff.state,
+        endDate: eff.endsAt,
+        graceEndsAt: eff.graceEndsAt,
+      },
     };
   }
 
@@ -263,21 +255,6 @@ export class AuthService {
       throw new ConflictException('A store with this name already exists');
     }
 
-    // Resolve plan: use provided planId or default to free plan
-    let plan: Plan | null = null;
-    if (dto.planId) {
-      plan = await this.planRepository.findOne({
-        where: { id: dto.planId, isActive: true },
-      });
-      if (!plan) {
-        throw new ConflictException('Invalid or inactive plan');
-      }
-    } else {
-      plan = await this.planRepository.findOne({
-        where: { name: 'Grátis' },
-      });
-    }
-
     // Generate random password
     const generatedPassword = this.generatePassword();
     const hashedPassword = await bcrypt.hash(generatedPassword, 10);
@@ -301,21 +278,9 @@ export class AuthService {
     });
     const savedUser = await this.userRepository.save(user);
 
-    // Create subscription to selected plan (1 month from now)
-    if (plan) {
-      const now = new Date();
-      const endDate = new Date(now);
-      endDate.setMonth(endDate.getMonth() + 1);
-
-      const sub = this.subscriptionRepository.create({
-        store: savedStore,
-        plan,
-        startDate: now,
-        endDate,
-        status: 'active',
-      });
-      await this.subscriptionRepository.save(sub);
-    }
+    // Todas as lojas novas começam com o teste gratuito do plano Pro.
+    // O plano escolhido no registo é pago depois, no separador «Plano» do painel.
+    await this.billingService.startTrial(savedStore.id);
 
     const payload: JwtPayload = {
       sub: savedUser.id,
@@ -349,6 +314,8 @@ export class AuthService {
         storeId: savedStore.id,
         rootAdmin: true,
       },
+      // Plano escolhido na página de preços: o painel abre o separador «Plano» para pagar
+      requestedPlanId: dto.planId ?? null,
     };
   }
 
@@ -404,7 +371,6 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
 
-    let permissions: string[] = [];
     let role: { id: number; name: string } | null = null;
 
     if (adminUser.roleId) {
@@ -414,23 +380,9 @@ export class AuthService {
       if (roleEntity) {
         role = { id: roleEntity.id, name: roleEntity.name };
       }
-
-      const rolePermissions = await this.rolePermissionRepository.find({
-        where: { roleId: adminUser.roleId },
-      });
-
-      if (rolePermissions.length > 0) {
-        const permissionIds = rolePermissions.map((rp) => rp.permissionId);
-        const permissionEntities = await this.permissionRepository.find({
-          where: permissionIds.map((id) => ({ id })),
-        });
-        permissions = permissionEntities.map((p) => p.slug);
-      }
     }
 
-    if (adminUser.isRoot) {
-      permissions = ['system.full-access'];
-    }
+    const permissions = await this.adminService.getPermissionSlugs(adminUser);
 
     return {
       id: adminUser.id,

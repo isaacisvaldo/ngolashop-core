@@ -34,24 +34,25 @@ export class AdminGuard implements CanActivate {
       throw new ForbiddenException('Admin access required');
     }
 
-    if (user.rootAdmin) {
-      return true;
-    }
-
-    if (!requiredPermissions || requiredPermissions.length === 0) {
-      return true;
-    }
-
     const adminUser = await this.adminService.findById(user.sub);
 
     if (!adminUser || !adminUser.isActive) {
       throw new ForbiddenException('Account disabled');
     }
 
-    if (adminUser.roleId) {
+    if (adminUser.isRoot || !requiredPermissions || requiredPermissions.length === 0) {
       return true;
     }
 
-    throw new ForbiddenException('Insufficient permissions');
+    const granted = new Set(await this.adminService.getPermissionSlugs(adminUser));
+    // Uma permissão de escrita implica a respectiva leitura (ex.: order.write → order.read)
+    const allowed = requiredPermissions.some(
+      (p) => granted.has(p) || (p.endsWith('.read') && granted.has(p.replace(/\.read$/, '.write'))),
+    );
+
+    if (!allowed) {
+      throw new ForbiddenException('Insufficient permissions');
+    }
+    return true;
   }
 }

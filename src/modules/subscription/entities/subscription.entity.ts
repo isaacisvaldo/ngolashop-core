@@ -15,12 +15,14 @@ export class StoreSubscription {
   @PrimaryGeneratedColumn()
   id!: number;
 
+  @Column({ name: 'store_id', type: 'integer', nullable: false })
   storeId!: number;
 
   @ManyToOne(() => Store)
   @JoinColumn({ name: 'store_id' })
   store!: Store;
 
+  @Column({ name: 'plan_id', type: 'integer', nullable: false })
   planId!: number;
 
   @ManyToOne(() => Plan)
@@ -81,6 +83,20 @@ export class StoreSubscription {
     nullable: true,
   })
   paymentRef!: string | null;
+
+  /** monthly | quarterly | annual | trial */
+  @Column({ name: 'cycle', type: 'varchar', length: 20, nullable: true })
+  cycle!: string | null;
+
+  /** trial | payment | admin */
+  @Column({ name: 'source', type: 'varchar', length: 20, nullable: false, default: 'payment' })
+  source!: string;
+
+  @Column({ name: 'invoice_id', type: 'integer', nullable: true })
+  invoiceId!: number | null;
+
+  @Column({ name: 'notes', type: 'text', nullable: true })
+  notes!: string | null;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamp', nullable: false })
   createdAt!: Date;

@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsInt, IsOptional, IsNumberString, Min } from 'class-validator';
-import { Type } from 'class-transformer';
+import { IsBoolean, IsIn, IsInt, IsOptional, Min } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
 import { PaginationQueryDto } from '../../../common/dtos/pagination-query.dto';
 
 export class ProductFilterDto extends PaginationQueryDto {
@@ -17,4 +17,15 @@ export class ProductFilterDto extends PaginationQueryDto {
   @IsInt()
   @Min(1)
   categoryId?: number;
+
+  @ApiPropertyOptional({ description: 'Só produtos visíveis no marketplace (ativos, publicados, de lojas publicadas)' })
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true')
+  @IsBoolean()
+  published?: boolean;
+
+  @ApiPropertyOptional({ enum: ['recent', 'price_asc', 'price_desc', 'rating', 'sales'] })
+  @IsOptional()
+  @IsIn(['recent', 'price_asc', 'price_desc', 'rating', 'sales'])
+  sort?: 'recent' | 'price_asc' | 'price_desc' | 'rating' | 'sales';
 }

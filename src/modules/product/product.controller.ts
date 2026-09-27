@@ -19,6 +19,7 @@ import { ProductFilterDto } from './dto/product-filter.dto';
 import { JwtAuthGuard } from '../shared/auth/guards/jwt-auth.guard';
 import { AdminGuard } from '../shared/auth/guards/admin.guard';
 import { CurrentUser } from '../shared/auth/decorators/current-user.decorator';
+import { RequiredPermissions } from '../shared/auth/decorators/required-permissions.decorator';
 
 @ApiTags('Products')
 @Controller('product')
@@ -43,13 +44,16 @@ export class ProductController {
       query.limit,
       query.storeId,
       query.categoryId,
+      query.search,
+      query.published,
+      query.sort,
     );
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get product by ID' })
   findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.productService.findOne(id);
+    return this.productService.findPublic(id);
   }
 
   @Patch(':id')
@@ -97,6 +101,7 @@ export class ProductController {
 
   @Patch(':id/admin')
   @UseGuards(JwtAuthGuard, AdminGuard)
+  @RequiredPermissions('product.write')
   @ApiOperation({ summary: 'Admin update product (publish/feature/activate)' })
   adminUpdate(
     @Param('id', ParseIntPipe) id: number,

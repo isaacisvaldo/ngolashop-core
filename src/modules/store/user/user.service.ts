@@ -9,7 +9,7 @@ import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { User } from '../../shared/auth/entities/user.entity';
 import { Store } from '../entities/store.entity';
-import { StoreSubscription } from '../../subscription/entities/subscription.entity';
+import { BillingService } from '../../billing/billing.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 
@@ -20,8 +20,7 @@ export class UserService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(Store)
     private readonly storeRepository: Repository<Store>,
-    @InjectRepository(StoreSubscription)
-    private readonly subscriptionRepository: Repository<StoreSubscription>,
+    private readonly billing: BillingService,
   ) {}
 
   async create(storeId: number, createUserDto: CreateUserDto): Promise<User> {
@@ -39,23 +38,7 @@ export class UserService {
       throw new NotFoundException('Store not found');
     }
 
-    // Check user limit from active subscription
-    const subscription = await this.subscriptionRepository.findOne({
-      where: { store: { id: storeId }, status: 'active' },
-      relations: { plan: true },
-      order: { createdAt: 'DESC' },
-    });
-
-    if (subscription?.plan && subscription.plan.limitUsers !== null) {
-      const currentUserCount = await this.userRepository.count({
-        where: { storeId },
-      });
-      if (currentUserCount >= subscription.plan.limitUsers) {
-        throw new ForbiddenException(
-          'User limit reached for your current plan',
-        );
-      }
-    }
+    await this.billing.assertCanAddUser(storeId);
 
     const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
     const user = this.userRepository.create({

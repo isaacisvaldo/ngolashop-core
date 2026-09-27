@@ -30,7 +30,7 @@ export class EmailService {
       await this.transporter.sendMail({
         from: this.configService.get<string>(
           'SMTP_FROM',
-          'Ngola Bazaar <no-reply@ngolabazaar.com>',
+          'Kamba Shop <no-reply@kambashop.ao>',
         ),
         to: dto.to,
         subject: dto.subject,
@@ -49,10 +49,10 @@ export class EmailService {
     email: string,
     password: string,
   ): Promise<void> {
-    const subject = `Bem-vindo ao Ngola Bazaar - Sua loja "${storeName}" foi criada!`;
+    const subject = `Bem-vindo ao Kamba Shop - Sua loja "${storeName}" foi criada!`;
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #FF5722;">Bem-vindo ao Ngola Bazaar!</h2>
+        <h2 style="color: #FF5722;">Bem-vindo ao Kamba Shop!</h2>
         <p>Olá <strong>${userName}</strong>,</p>
         <p>Sua loja <strong>"${storeName}"</strong> foi criada com sucesso!</p>
         <p>Aqui estão os seus dados de acesso:</p>
@@ -63,7 +63,7 @@ export class EmailService {
         <p style="color: #e53935;"><strong>IMPORTANTE:</strong> Recomendamos que altere a sua senha após o primeiro login.</p>
         <p>Pode aceder ao painel da sua loja em: <a href="${this.configService.get<string>('FRONTEND_URL', 'https://ngolabazaar.com')}/login">Clique aqui</a></p>
         <br/>
-        <p>Atenciosamente,<br/>Equipa Ngola Bazaar</p>
+        <p>Atenciosamente,<br/>Equipa Kamba Shop</p>
       </div>
     `;
     await this.send({ to, subject, html });

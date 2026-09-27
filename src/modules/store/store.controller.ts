@@ -10,11 +10,12 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { StoreService } from './store.service';
-import { UpdateStoreDto } from './dto/update-store.dto';
-import { PaginationQueryDto } from '../../common/dtos/pagination-query.dto';
+import { AdminUpdateStoreDto, UpdateStoreDto } from './dto/update-store.dto';
+import { StoreFilterDto } from './dto/store-filter.dto';
 import { JwtAuthGuard } from '../shared/auth/guards/jwt-auth.guard';
 import { AdminGuard } from '../shared/auth/guards/admin.guard';
 import { CurrentUser } from '../shared/auth/decorators/current-user.decorator';
+import { RequiredPermissions } from '../shared/auth/decorators/required-permissions.decorator';
 
 @ApiTags('Stores')
 @Controller('store')
@@ -23,8 +24,8 @@ export class StoreController {
 
   @Get()
   @ApiOperation({ summary: 'List all stores' })
-  findAll(@Query() query: PaginationQueryDto) {
-    return this.storeService.findAll(query.page, query.limit);
+  findAll(@Query() query: StoreFilterDto) {
+    return this.storeService.findAll(query.page, query.limit, query.search, query.published);
   }
 
   @Get('me')
@@ -53,13 +54,15 @@ export class StoreController {
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard, AdminGuard)
+  @RequiredPermissions('store.write')
   @ApiOperation({ summary: 'Admin update store (publish/verify/activate)' })
-  adminUpdate(@Param('id') id: string, @Body() dto: UpdateStoreDto) {
+  adminUpdate(@Param('id') id: string, @Body() dto: AdminUpdateStoreDto) {
     return this.storeService.adminUpdate(+id, dto);
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @RequiredPermissions('store.write')
   @ApiOperation({ summary: 'Delete store (admin)' })
   remove(@Param('id') id: string) {
     return this.storeService.remove(+id);

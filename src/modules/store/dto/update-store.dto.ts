@@ -72,4 +72,24 @@ export class UpdateStoreDto {
   @IsArray()
   @IsOptional()
   tags?: string[];
+
+  @IsBoolean()
+  @IsOptional()
+  hideBranding?: boolean;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(190)
+  customDomain?: string | null;
+}
+
+/** Campos que só o admin pode alterar. */
+export class AdminUpdateStoreDto extends UpdateStoreDto {
+  @IsBoolean()
+  @IsOptional()
+  isActive?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  isVerified?: boolean;
 }

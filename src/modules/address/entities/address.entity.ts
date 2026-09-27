@@ -16,6 +16,7 @@ export class Address {
   @PrimaryGeneratedColumn()
   id!: number;
 
+  @Column({ name: 'store_id', type: 'integer', nullable: true })
   storeId!: number | null;
 
   @ManyToOne(() => Store, (store) => store.addresses, { nullable: true })
@@ -31,6 +32,7 @@ export class Address {
   @Column({ name: 'city', type: 'varchar', length: 100, nullable: false })
   city!: string;
 
+  @Column({ name: 'province_id', type: 'integer', nullable: true })
   provinceId!: number | null;
 
   @ManyToOne(() => Province, { nullable: true })

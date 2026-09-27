@@ -3,6 +3,9 @@ import { Type } from 'class-transformer';
 import {
   IsArray,
   IsEmail,
+  IsIn,
+  ArrayMinSize,
+  MaxLength,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -29,11 +32,6 @@ export class CreateOrderDto {
   @IsNotEmpty()
   storeId!: number;
 
-  @ApiPropertyOptional({ description: 'Client ID (auto-filled if logged in)' })
-  @IsNumber()
-  @IsOptional()
-  clientId?: number;
-
   @ApiProperty({ example: 'João Silva' })
   @IsString()
   @IsNotEmpty()
@@ -59,8 +57,43 @@ export class CreateOrderDto {
   @IsOptional()
   notes?: string;
 
+  @ApiPropertyOptional({ enum: ['delivery', 'pickup'], default: 'delivery' })
+  @IsOptional()
+  @IsIn(['delivery', 'pickup'])
+  deliveryType?: 'delivery' | 'pickup';
+
+  @ApiPropertyOptional({ example: 'zona-1', description: 'ID da zona de entrega configurada pela loja' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  deliveryZoneId?: string;
+
+  @ApiPropertyOptional({ enum: ['multicaixa', 'transferencia', 'entrega'] })
+  @IsOptional()
+  @IsIn(['multicaixa', 'transferencia', 'entrega'])
+  paymentMethod?: 'multicaixa' | 'transferencia' | 'entrega';
+
+  @ApiPropertyOptional({ example: 'Luanda' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  customerProvince?: string;
+
+  @ApiPropertyOptional({ example: 'Talatona' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  customerCity?: string;
+
+  @ApiPropertyOptional({ example: 'BEMVINDO10' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  couponCode?: string;
+
   @ApiProperty({ type: [OrderItemDto] })
   @IsArray()
+  @ArrayMinSize(1)
   @ValidateNested({ each: true })
   @Type(() => OrderItemDto)
   items!: OrderItemDto[];

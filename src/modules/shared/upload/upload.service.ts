@@ -1,18 +1,14 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { diskStorage } from 'multer';
-import { extname, join } from 'path';
-import { existsSync, mkdirSync } from 'fs';
-import {
-  S3Client,
-  PutObjectCommand,
-  DeleteObjectCommand,
-  HeadObjectCommand,
-  GetObjectCommand,
-} from '@aws-sdk/client-s3';
+import { GetObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { v4 as uuid } from 'uuid';
+import { extname, join } from 'path';
 import { Readable } from 'stream';
+import { v4 as uuid } from 'uuid';
+import { StorageDriver } from './drivers/storage-driver';
+import { LocalStorageDriver } from './drivers/local.driver';
+import { S3StorageDriver } from './drivers/s3.driver';
+import { SupabaseStorageDriver } from './drivers/supabase.driver';
 
 export interface UploadResult {
   url: string;
@@ -21,212 +17,146 @@ export interface UploadResult {
   originalname: string;
   size: number;
   mimetype: string;
+  driver: StorageDriver['name'];
 }
+
+export type UploadMode = 'local' | 's3' | 'supabase';
+
+/** Tipos aceites. SVG fica de fora de propósito: pode conter scripts (XSS). */
+export const ALLOWED_MIME_TYPES: Record<string, string> = {
+  'image/jpeg': '.jpg',
+  'image/png': '.png',
+  'image/webp': '.webp',
+  'image/gif': '.gif',
+  'application/pdf': '.pdf',
+};
 
 @Injectable()
 export class UploadService {
   private readonly logger = new Logger(UploadService.name);
-  private readonly s3Client: S3Client | null = null;
-  private readonly uploadMode: 'local' | 's3';
+  readonly driver: StorageDriver;
 
   constructor(private readonly configService: ConfigService) {
-    this.uploadMode = this.configService.get<string>('UPLOAD_MODE', 'local') as 'local' | 's3';
+    const mode = (this.configService.get<string>('UPLOAD_MODE') || 'local').toLowerCase() as UploadMode;
+    this.driver = this.createDriver(mode);
+    this.logger.log(`Uploads a usar o driver "${this.driver.name}"`);
+  }
 
-    if (this.uploadMode === 's3') {
-      const region = this.configService.get<string>('AWS_REGION');
-      const accessKeyId = this.configService.get<string>('AWS_ACCESS_KEY_ID');
-      const secretAccessKey = this.configService.get<string>('AWS_SECRET_ACCESS_KEY');
-      if (!region || !accessKeyId || !secretAccessKey) {
-        throw new Error('AWS credentials not configured. Set AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY');
+  private required(name: string): string {
+    const value = this.configService.get<string>(name);
+    if (!value) throw new Error(`UPLOAD_MODE requer a variável de ambiente ${name}`);
+    return value;
+  }
+
+  private createDriver(mode: UploadMode): StorageDriver {
+    switch (mode) {
+      case 's3':
+        return new S3StorageDriver({
+          region: this.required('AWS_REGION'),
+          bucket: this.required('AWS_BUCKET'),
+          accessKeyId: this.required('AWS_ACCESS_KEY_ID'),
+          secretAccessKey: this.required('AWS_SECRET_ACCESS_KEY'),
+          pathPrefix: this.configService.get<string>('AWS_S3_PATH', ''),
+          publicUrl: this.configService.get<string>('AWS_PUBLIC_URL') || undefined,
+          endpoint: this.configService.get<string>('AWS_ENDPOINT') || undefined,
+        });
+      case 'supabase':
+        return new SupabaseStorageDriver({
+          url: this.required('SUPABASE_URL'),
+          serviceKey: this.required('SUPABASE_SERVICE_ROLE_KEY'),
+          bucket: this.required('SUPABASE_BUCKET'),
+          pathPrefix: this.configService.get<string>('SUPABASE_PATH', ''),
+        });
+      case 'local': {
+        const port = this.configService.get<string>('PORT', '3008');
+        const publicBase = (this.configService.get<string>('API_PUBLIC_URL') || `http://localhost:${port}/api`).replace(/\/$/, '');
+        return new LocalStorageDriver(
+          join(process.cwd(), this.configService.get<string>('UPLOAD_LOCAL_DIR', 'uploads')),
+          publicBase,
+        );
       }
-      this.s3Client = new S3Client({
-        region,
-        credentials: { accessKeyId, secretAccessKey },
-      });
+      default:
+        throw new Error(`UPLOAD_MODE inválido: "${String(mode)}". Use local, s3 ou supabase.`);
     }
   }
 
-  getStorage() {
-    const uploadPath = join(process.cwd(), 'uploads');
-    if (!existsSync(uploadPath)) {
-      mkdirSync(uploadPath, { recursive: true });
+  get mode(): UploadMode {
+    return this.driver.name;
+  }
+
+  validate(file: Express.Multer.File) {
+    if (!ALLOWED_MIME_TYPES[file.mimetype]) {
+      throw new BadRequestException('Tipo de ficheiro não permitido (use JPG, PNG, WEBP, GIF ou PDF)');
     }
-
-    return diskStorage({
-      destination: uploadPath,
-      filename: (_req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-        const ext = extname(file.originalname);
-        cb(null, `${file.fieldname}-${uniqueSuffix}${ext}`);
-      },
-    });
   }
 
-  getFileFilter() {
-    return (_req: any, file: Express.Multer.File, cb: any) => {
-      if (file.mimetype.match(/\/(jpg|jpeg|png|gif|webp|svg|pdf)$/)) {
-        cb(null, true);
-      } else {
-        cb(new Error('Tipo de arquivo não permitido'), false);
-      }
-    };
+  private buildKey(file: Express.Multer.File, options?: { folder?: string; fileName?: string }): string {
+    const ext = ALLOWED_MIME_TYPES[file.mimetype] ?? (extname(file.originalname).toLowerCase() || '');
+    const base = options?.fileName ? this.sanitize(options.fileName) : uuid();
+    const folder = options?.folder ? `${this.sanitize(options.folder)}/` : '';
+    return `${folder}${Date.now()}-${base || uuid()}${ext}`;
   }
 
-  getLocalFileUrl(filename: string): string {
-    return `/upload/${filename}`;
-  }
-
-  async uploadLocal(file: Express.Multer.File): Promise<UploadResult> {
-    return {
-      url: this.getLocalFileUrl(file.filename),
-      key: file.filename,
-      filename: file.filename,
-      originalname: file.originalname,
-      size: file.size,
-      mimetype: file.mimetype,
-    };
-  }
-
-  async uploadLocalMultiple(files: Express.Multer.File[]): Promise<UploadResult[]> {
-    return Promise.all(files.map((file) => this.uploadLocal(file)));
-  }
-
-  private buildS3Key(originalName: string, options?: { folder?: string; fileName?: string }): string {
-    const ext = extname(originalName);
-    const baseName = options?.fileName
-      ? this.sanitizeFileName(options.fileName)
-      : uuid();
-    const s3Path = this.configService.get<string>('AWS_S3_PATH', '');
-    const folder = options?.folder ? `${this.sanitizeFileName(options.folder)}/` : '';
-    return `${s3Path}${folder}${Date.now()}-${baseName}${ext}`;
-  }
-
-  private sanitizeFileName(value: string): string {
+  private sanitize(value: string): string {
     return value
       .trim()
       .toLowerCase()
       .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[̀-ͯ]/g, '')
       .replace(/[^a-z0-9-_]+/g, '-')
       .replace(/-+/g, '-')
-      .replace(/^-|-$/g, '');
-  }
-
-  async uploadS3(file: Express.Multer.File, options?: { folder?: string; fileName?: string }): Promise<UploadResult> {
-    if (!this.s3Client) {
-      throw new Error('S3 client not configured');
-    }
-
-    const key = this.buildS3Key(file.originalname, options);
-    const bucket = this.configService.get<string>('AWS_BUCKET');
-    const region = this.configService.get<string>('AWS_REGION');
-
-    await this.s3Client.send(
-      new PutObjectCommand({
-        Bucket: bucket,
-        Key: key,
-        Body: file.buffer,
-        ContentType: file.mimetype,
-      }),
-    );
-
-    const url = `https://${bucket}.s3.${region}.amazonaws.com/${key}`;
-
-    return {
-      url,
-      key,
-      filename: key,
-      originalname: file.originalname,
-      size: file.size,
-      mimetype: file.mimetype,
-    };
-  }
-
-  async uploadS3Multiple(files: Express.Multer.File[], options?: { folder?: string }): Promise<UploadResult[]> {
-    return Promise.all(files.map((file) => this.uploadS3(file, options)));
-  }
-
-  async getPresignedUrl(key: string, expirySeconds = 3600): Promise<string> {
-    if (!this.s3Client) {
-      throw new Error('S3 client not configured');
-    }
-
-    const bucket = this.configService.get<string>('AWS_BUCKET');
-
-    try {
-      await this.s3Client.send(
-        new HeadObjectCommand({ Bucket: bucket, Key: key }),
-      );
-    } catch {
-      throw new Error(`Arquivo "${key}" não encontrado no bucket`);
-    }
-
-    const command = new GetObjectCommand({ Bucket: bucket, Key: key });
-    return getSignedUrl(this.s3Client, command, { expiresIn: expirySeconds });
-  }
-
-  async getFileStream(key: string): Promise<{ stream: Readable; contentType: string }> {
-    if (!this.s3Client) {
-      throw new Error('S3 client not configured');
-    }
-
-    const bucket = this.configService.get<string>('AWS_BUCKET');
-
-    try {
-      await this.s3Client.send(
-        new HeadObjectCommand({ Bucket: bucket, Key: key }),
-      );
-    } catch {
-      throw new Error(`Arquivo "${key}" não encontrado no bucket`);
-    }
-
-    const response = await this.s3Client.send(
-      new GetObjectCommand({ Bucket: bucket, Key: key }),
-    );
-
-    return {
-      stream: response.Body as Readable,
-      contentType: response.ContentType ?? 'application/octet-stream',
-    };
-  }
-
-  async deleteS3(key: string): Promise<void> {
-    if (!this.s3Client) {
-      throw new Error('S3 client not configured');
-    }
-
-    const bucket = this.configService.get<string>('AWS_BUCKET');
-
-    try {
-      await this.s3Client.send(
-        new HeadObjectCommand({ Bucket: bucket, Key: key }),
-      );
-    } catch {
-      throw new Error(`Arquivo "${key}" não encontrado no bucket`);
-    }
-
-    await this.s3Client.send(
-      new DeleteObjectCommand({ Bucket: bucket, Key: key }),
-    );
+      .replace(/^-|-$/g, '')
+      .slice(0, 80);
   }
 
   async upload(file: Express.Multer.File, options?: { folder?: string; fileName?: string }): Promise<UploadResult> {
-    if (this.uploadMode === 's3') {
-      return this.uploadS3(file, options);
-    }
-    return this.uploadLocal(file);
+    this.validate(file);
+    const stored = await this.driver.put(this.buildKey(file, options), file.buffer, file.mimetype);
+    return {
+      url: stored.url,
+      key: stored.key,
+      filename: stored.key,
+      originalname: file.originalname,
+      size: file.size,
+      mimetype: file.mimetype,
+      driver: this.driver.name,
+    };
   }
 
   async uploadMultiple(files: Express.Multer.File[], options?: { folder?: string }): Promise<UploadResult[]> {
-    if (this.uploadMode === 's3') {
-      return this.uploadS3Multiple(files, options);
-    }
-    return this.uploadLocalMultiple(files);
+    files.forEach((f) => this.validate(f));
+    return Promise.all(files.map((file) => this.upload(file, options)));
   }
 
   async delete(key: string): Promise<void> {
-    if (this.uploadMode === 's3') {
-      return this.deleteS3(key);
+    await this.driver.delete(key);
+  }
+
+  /** Caminho em disco de um ficheiro local (só no modo local). */
+  localPath(key: string): string | null {
+    return this.driver instanceof LocalStorageDriver ? this.driver.resolve(key) : null;
+  }
+
+  private s3(): S3StorageDriver {
+    if (!(this.driver instanceof S3StorageDriver)) {
+      throw new BadRequestException('Disponível apenas com UPLOAD_MODE=s3');
     }
+    return this.driver;
+  }
+
+  async getPresignedUrl(key: string, expirySeconds = 3600): Promise<string> {
+    const s3 = this.s3();
+    try {
+      await s3.client.send(new HeadObjectCommand({ Bucket: s3.bucket, Key: key }));
+    } catch {
+      throw new BadRequestException(`Ficheiro "${key}" não encontrado no bucket`);
+    }
+    return getSignedUrl(s3.client, new GetObjectCommand({ Bucket: s3.bucket, Key: key }), { expiresIn: expirySeconds });
+  }
+
+  async getFileStream(key: string): Promise<{ stream: Readable; contentType: string }> {
+    const s3 = this.s3();
+    const response = await s3.client.send(new GetObjectCommand({ Bucket: s3.bucket, Key: key }));
+    return { stream: response.Body as Readable, contentType: response.ContentType ?? 'application/octet-stream' };
   }
 }

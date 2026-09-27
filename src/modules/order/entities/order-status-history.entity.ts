@@ -13,6 +13,7 @@ export class OrderStatusHistory {
   @PrimaryGeneratedColumn()
   id!: number;
 
+  @Column({ name: 'order_id', type: 'integer', nullable: false })
   orderId!: number;
 
   @ManyToOne(() => Order, (order) => order.statusHistory)

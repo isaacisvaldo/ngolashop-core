@@ -17,8 +17,8 @@ async function bootstrap() {
   app.setGlobalPrefix('api');
 
   const config = new DocumentBuilder()
-    .setTitle('Ngola Bazaar API')
-    .setDescription('Ngola Bazaar - Store Management API')
+    .setTitle('Kamba Shop API')
+    .setDescription('Kamba Shop - Marketplace API')
     .setVersion('1.0.0')
     .addBearerAuth(
       {

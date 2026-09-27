@@ -6,6 +6,7 @@ import { PlanService } from './plan.service';
 import { CreatePlanDto } from './dto/create-plan.dto';
 import { UpdatePlanDto } from './dto/update-plan.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RequiredPermissions } from '../auth/decorators/required-permissions.decorator';
 import { AdminGuard } from '../auth/guards/admin.guard';
 
 @ApiTags('Plans')
@@ -27,6 +28,7 @@ export class PlanController {
 
   @Post()
   @UseGuards(JwtAuthGuard, AdminGuard)
+  @RequiredPermissions('plan.write')
   @ApiOperation({ summary: 'Create plan (admin)' })
   create(@Body() dto: CreatePlanDto) {
     return this.planService.create(dto);
@@ -34,6 +36,7 @@ export class PlanController {
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard, AdminGuard)
+  @RequiredPermissions('plan.write')
   @ApiOperation({ summary: 'Update plan (admin)' })
   update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdatePlanDto) {
     return this.planService.update(id, dto);
@@ -41,6 +44,7 @@ export class PlanController {
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard, AdminGuard)
+  @RequiredPermissions('plan.write')
   @ApiOperation({ summary: 'Delete plan (admin)' })
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.planService.remove(id);

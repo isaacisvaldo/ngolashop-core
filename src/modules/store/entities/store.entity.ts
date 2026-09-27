@@ -44,6 +44,7 @@ export class Store {
   @Column({ name: 'whatsapp', type: 'varchar', length: 20, nullable: false })
   whatsapp!: string;
 
+  @Column({ name: 'category_id', type: 'integer', nullable: true })
   categoryId!: number | null;
 
   @ManyToOne(() => Category)
@@ -170,6 +171,18 @@ export class Store {
     nullable: true,
   })
   tags!: string[] | null;
+
+  @Column({ name: 'is_founder', type: 'boolean', nullable: false, default: false })
+  isFounder!: boolean;
+
+  @Column({ name: 'founder_since', type: 'timestamp', nullable: true })
+  founderSince!: Date | null;
+
+  @Column({ name: 'hide_branding', type: 'boolean', nullable: false, default: false })
+  hideBranding!: boolean;
+
+  @Column({ name: 'custom_domain', type: 'varchar', length: 190, nullable: true })
+  customDomain!: string | null;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamp', nullable: false })
   createdAt!: Date;

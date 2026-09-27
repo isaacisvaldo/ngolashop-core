@@ -20,6 +20,7 @@ export class Order {
   @PrimaryGeneratedColumn()
   id!: number;
 
+  @Column({ name: 'store_id', type: 'integer', nullable: false })
   storeId!: number;
 
   @ManyToOne(() => Store, (store) => store.orders)
@@ -110,6 +111,24 @@ export class Order {
     default: 0,
   })
   total!: number;
+
+  @Column({ name: 'delivery_type', type: 'varchar', length: 20, nullable: false, default: 'delivery' })
+  deliveryType!: 'delivery' | 'pickup';
+
+  @Column({ name: 'delivery_zone', type: 'varchar', length: 120, nullable: true })
+  deliveryZone!: string | null;
+
+  @Column({ name: 'delivery_days', type: 'integer', nullable: true })
+  deliveryDays!: number | null;
+
+  @Column({ name: 'payment_method', type: 'varchar', length: 30, nullable: true })
+  paymentMethod!: string | null;
+
+  @Column({ name: 'coupon_code', type: 'varchar', length: 40, nullable: true })
+  couponCode!: string | null;
+
+  @Column({ name: 'discount_amount', type: 'decimal', precision: 12, scale: 2, nullable: false, default: 0 })
+  discountAmount!: number;
 
   @Column({ name: 'notes', type: 'text', nullable: true })
   notes!: string;

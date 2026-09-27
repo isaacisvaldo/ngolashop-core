@@ -8,6 +8,7 @@ import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { User } from './entities/user.entity';
 import { AdminUser } from './entities/admin-user.entity';
+import { AdminUserPermission } from './entities/admin-user-permission.entity';
 import { Client } from '../../client/entities/client.entity';
 import { Store } from '../../store/entities/store.entity';
 import { Plan } from '../plan/entities/plan.entity';
@@ -27,6 +28,7 @@ import { AdminService } from './admin.service';
     TypeOrmModule.forFeature([
       User,
       AdminUser,
+      AdminUserPermission,
       Client,
       Store,
       Plan,

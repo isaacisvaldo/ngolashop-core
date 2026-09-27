@@ -18,6 +18,7 @@ export class Province {
   @Column({ name: 'name', type: 'varchar', length: 100, nullable: false })
   name!: string;
 
+  @Column({ name: 'country_id', type: 'integer', nullable: false })
   countryId!: number;
 
   @ManyToOne(() => Country)

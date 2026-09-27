@@ -18,12 +18,14 @@ export class Product {
   @PrimaryGeneratedColumn()
   id!: number;
 
+  @Column({ name: 'store_id', type: 'integer', nullable: false })
   storeId!: number;
 
   @ManyToOne(() => Store, (store) => store.products)
   @JoinColumn({ name: 'store_id' })
   store!: Store;
 
+  @Column({ name: 'category_id', type: 'integer', nullable: true })
   categoryId!: number | null;
 
   @ManyToOne(() => Category, { nullable: true })
@@ -105,6 +107,10 @@ export class Product {
 
   @Column({ name: 'total_sales', type: 'integer', nullable: false, default: 0 })
   totalSales!: number;
+
+  /** Oculto automaticamente porque a loja excede o limite de produtos do plano (não apagado). */
+  @Column({ name: 'hidden_by_plan', type: 'boolean', nullable: false, default: false })
+  hiddenByPlan!: boolean;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamp', nullable: false })
   createdAt!: Date;

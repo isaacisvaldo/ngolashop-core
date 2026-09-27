@@ -1,6 +1,10 @@
 import { DataSource, DataSourceOptions } from 'typeorm';
 import { config } from 'dotenv';
 import * as path from 'path';
+import { types } from 'pg';
+
+// Devolve colunas DECIMAL/NUMERIC como number em vez de string
+types.setTypeParser(types.builtins.NUMERIC, (value: string) => parseFloat(value));
 
 config({
   path: (() => {
